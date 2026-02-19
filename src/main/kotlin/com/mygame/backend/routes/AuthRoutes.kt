@@ -3,6 +3,8 @@ package com.mygame.backend.routes
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.mygame.backend.repository.PlayerRepository
+import com.mygame.backend.models.AuthRequest
+import com.mygame.backend.models.AuthResponse
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
@@ -18,9 +20,13 @@ fun Route.authRoutes(playerRepository: PlayerRepository, config: ApplicationConf
     val audience = config.property("jwt.audience").getString()
     
     post("/auth/register") {
-        val user = call.receive<Map<String, String>>()
-        val username = user["username"] ?: return@post call.respondText("Missing username", status = io.ktor.http.HttpStatusCode.BadRequest)
-        val password = user["password"] ?: return@post call.respondText("Missing password", status = io.ktor.http.HttpStatusCode.BadRequest)
+        val request = try {
+            call.receive<AuthRequest>()
+        } catch (e: Exception) {
+            return@post call.respondText("Invalid request format", status = io.ktor.http.HttpStatusCode.BadRequest)
+        }
+        val username = request.username
+        val password = request.password
 
         val player = playerRepository.create(username, password)
         if (player != null) {
@@ -31,16 +37,20 @@ fun Route.authRoutes(playerRepository: PlayerRepository, config: ApplicationConf
                 .withExpiresAt(Date(System.currentTimeMillis() + 86400000)) // 24h
                 .sign(Algorithm.HMAC256(secret))
                 
-            call.respond(mapOf("token" to token, "player" to player.toDto()))
+            call.respond(AuthResponse(token, player.toDto()))
         } else {
             call.respondText("Username already exists", status = io.ktor.http.HttpStatusCode.Conflict)
         }
     }
 
     post("/auth/login") {
-        val user = call.receive<Map<String, String>>()
-        val username = user["username"] ?: return@post
-        val password = user["password"] ?: return@post
+        val request = try {
+            call.receive<AuthRequest>()
+        } catch (e: Exception) {
+            return@post call.respondText("Invalid request format", status = io.ktor.http.HttpStatusCode.BadRequest)
+        }
+        val username = request.username
+        val password = request.password
         
         val player = playerRepository.validateCredentials(username, password)
         if (player != null) {
@@ -51,7 +61,7 @@ fun Route.authRoutes(playerRepository: PlayerRepository, config: ApplicationConf
                 .withExpiresAt(Date(System.currentTimeMillis() + 86400000)) // 24h
                 .sign(Algorithm.HMAC256(secret))
             
-            call.respond(mapOf("token" to token, "player" to player.toDto()))
+            call.respond(AuthResponse(token, player.toDto()))
         } else {
             call.respondText("Invalid credentials", status = io.ktor.http.HttpStatusCode.Unauthorized)
         }

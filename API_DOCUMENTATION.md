@@ -18,7 +18,11 @@ Create a new player account.
   ```json
   {
     "token": "jwt_token_here",
-    "player": { ... }
+    "player": {
+      "id": "uuid",
+      "username": "player1",
+      "level": 1
+    }
   }
   ```
 
@@ -37,7 +41,11 @@ Authenticate an existing player.
   ```json
   {
     "token": "jwt_token_here",
-    "player": { ... }
+    "player": {
+      "id": "uuid",
+      "username": "player1",
+      "level": 1
+    }
   }
   ```
 
@@ -126,6 +134,9 @@ Base URL: `/matchmaking`
 - **URL**: `/games/types`
 - **Method**: `GET`
 - **Response**: `200 OK` (List of available game types)
+  ```json
+  ["BINGO"]
+  ```
 
 ### Get Leaderboard
 - **URL**: `/leaderboard`
