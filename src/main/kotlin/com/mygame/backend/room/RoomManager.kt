@@ -16,6 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
@@ -115,32 +118,27 @@ class RoomManager(
         
         room.state = RoomState.IN_GAME
         
-        // Broadcast Start
-        broadcastToRoom(roomId, GameStartedMessage(Json.encodeToJsonElement(initialState))) // Send full state or specific logic
-        // The Engine might have specific private state logic (like Bingo player boards).
-        // "GAME_STARTED: { yourBoard: ... }" - section 14.
-        // The generic GameStartedMessage in Messages.kt has `initialDelta: JsonElement`.
-        // We probably need to send custom messages per player for things like Bingo.
         
-        // Workaround: Send generic start, then let engine send specific events?
-        // Or loop and send tailored messages.
+        // Send a tailored GAME_STARTED to each player with ONLY their own board
         players.forEach { p ->
-             // For Bingo, board is secret.
-             // We can check if engine needs private start msgs.
-             // Let's rely on GameStateManager + Loop to send initial state updates?
-             // Or send here.
-             
-             // Simplest: Send a "GAME_STARTED" with the full public state.
-             // And if private usage is needed, maybe use "custom" field in PlayerGameState.
-             // In BingoEngine, `initializeGame` sets up each player's board in `PlayerGameState`.
-             // Each player normally receives the full state? No, "Boards are hidden".
-             // So we must sanitize state before sending.
-             val sanitizedState = initialState // We need function to sanitize for a player.
-             // For now, assume full state sent.
-             // TODO: Implement state sanitization/view per player.
-             
-             val session = sessionManager.getSession(p.id)
-             session?.send(GameStartedMessage(Json.encodeToJsonElement(initialState)))
+            val session = sessionManager.getSession(p.id)
+            val myState = initialState.players[p.id]
+
+            // Build a per-player JsonObject: only expose their own board + public turn info
+            val perPlayerJson = JsonObject(mapOf(
+                "roomId" to JsonPrimitive(initialState.roomId),
+                "gameType" to JsonPrimitive(initialState.gameType),
+                "turnOrder" to JsonArray(initialState.turnOrder.map { JsonPrimitive(it) }),
+                "currentTurnIndex" to JsonPrimitive(initialState.currentTurnIndex),
+                "players" to JsonObject(mapOf(
+                    p.id to JsonObject(mapOf(
+                        "playerId" to JsonPrimitive(p.id),
+                        "isAlive" to JsonPrimitive(myState?.isAlive ?: true),
+                        "custom" to JsonObject(myState?.custom ?: emptyMap())
+                    ))
+                ))
+            ))
+            session?.send(GameStartedMessage(perPlayerJson))
         }
 
         // Start Loop

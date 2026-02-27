@@ -116,45 +116,17 @@ class BingoEngine : GameEngine {
         
         // Advance turn
         val nextTurnIndex = state.currentTurnIndex + 1
+        val nextTurnPlayerId = state.turnOrder[nextTurnIndex % state.turnOrder.size]
         
         // Create event
         val event = GameEvent(
             senderId = senderId,
             roomId = state.roomId,
-            opCode = OP_CALL_NUMBER, // Start with generic opCode or specific
-            // Wait, this is outgoing "NUMBER_CALLED".
-            // The method signature returns GameEvents.
-            // We should use server opCodes or messages. 
-            // The prompt says "NUMBER_CALLED: { ... }" is a server event.
-            // But we don't have opCodes for server messages, just JSON types.
-            // GameEvent is for "client -> server" usually, but can be "server -> broadcast".
-            // OpCode 10 = CALL_NUMBER is client -> server.
-            // OpCode n/a for server messages (they are typed JSONs).
-            // But `GameEvent` implies opCodes.
-            // "Generic OpCodes (handled by backend)... Game-specific OpCodes... OpCode 10+...".
-            // "Each event envelope: { senderId, roomId, opCode, payload }"
-            // "onTick: returns updated state + events to broadcast".
-            // "EventResult: broadcastToRoom: List<GameEvent>".
-            
-            // So GameEvent IS the broadcast vehicle.
-            // I will reuse OpCode 10 for "NUMBER_CALLED" or define a new one?
-            // "Server -> Client: { type: ..., payload: ... }".
-            // The prompt in Section 10 says "Server -> Client: { type, requestId, payload }".
-            // BUT Section 3 says "Generic OpCodes... OpCode 3 = GAME_STATE_SYNC".
-            // And "Game-specific OpCodes 10+".
-            
-            // It seems we broadcast GameEvents with opCodes.
-            // Client interprets them.
-            // So "NUMBER_CALLED" should have an OpCode?
-            // "OpCode 10 = MARK_CELL" (Bingo example).
-            // I'll use 10 for "NUMBER_CALLED" broadcast too.
-            
+            opCode = OP_CALL_NUMBER,
             payload = mapOf(
                 "number" to JsonPrimitive(number),
                 "calledBy" to JsonPrimitive(senderId),
-                // We could include board updates here but they are in state sync usually?
-                // Or we can put them in payload.
-                // "NUMBER_CALLED: ... boardUpdates: { ... }"
+                "nextTurnPlayerId" to JsonPrimitive(nextTurnPlayerId),
                 "boardUpdates" to JsonObject(updatedPlayers.mapValues { (_, p) ->
                      JsonObject(mapOf(
                          "markedIndexes" to p.custom["markedIndexes"]!!,
