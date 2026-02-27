@@ -13,6 +13,7 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
     configureDependencyInjection() // Must be first
+    configureHTTP()
     configureSerialization()
     configureDatabase()
     configureAuthentication()
