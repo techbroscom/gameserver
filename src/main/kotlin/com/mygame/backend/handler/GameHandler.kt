@@ -13,6 +13,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import org.slf4j.LoggerFactory
+import com.mygame.backend.models.GameEvent
+import com.mygame.backend.models.TargetType
 
 class GameHandler(
     private val sessionManager: SessionManager,
@@ -104,26 +106,38 @@ class GameHandler(
                  }
              }
              is LeaveRoomMessage -> {
-                 // We need to know which room? Client doesn't send roomId in LeaveRoomMessage (step 10).
-                 // So we need to track player's current room in SessionManager or handle lookup.
-                 // RoomManager doesn't map player->room easily without iteration.
-                 // For efficiency, SessionManager should track roomId? 
-                 // Or we iterate rooms (slow).
-                 // Let's skip for MVPs or implement a reverse lookup map in RoomManager.
-                 // I'll assume we iterate for now or the client sends it (but contract says no).
-                 // Wait, RoomManager.rooms is concurrent map.
-                 // I will add `getPlayerRoom(playerId)` to RoomManager.
+                 val room = roomManager.getPlayerRoom(playerId)
+                 if (room != null) {
+                     roomManager.leaveRoom(playerId, room.id)
+                 }
              }
              is StartGameMessage -> {
-                 // Need roomId. Same issue.
-                 // I'll implement `getPlayerRoom` in RoomManager.
+                 val room = roomManager.getPlayerRoom(playerId)
+                 if (room != null) {
+                     roomManager.startGame(playerId, room.id)
+                 } else {
+                     session.send(ErrorMessage(message.requestId, 4008, "You are not in a room"))
+                 }
              }
              is SendEventMessage -> {
-                 // Need roomId.
-                 // GameLoop handles this?
-                 // "Players send in-game events -> onPlayerEvent()"
-                 // The message has payload.
-                 // We need to route to the correct GameLoop.
+                 val room = roomManager.getPlayerRoom(playerId)
+                 if (room != null) {
+                     val loop = roomManager.getGameLoop(room.id)
+                     if (loop != null) {
+                         val gameEvent = GameEvent(
+                             senderId = playerId,
+                             roomId = room.id,
+                             opCode = message.opCode,
+                             payload = message.payload,
+                             targetType = TargetType.BROADCAST
+                         )
+                         loop.enqueueEvent(gameEvent)
+                     } else {
+                         session.send(ErrorMessage(message.requestId, 4009, "Game not in progress"))
+                     }
+                 } else {
+                     session.send(ErrorMessage(message.requestId, 4008, "You are not in a room"))
+                 }
              }
              is PingMessage -> session.send(ServerPongMessage(message.requestId))
              is PongMessage -> { /* Handle heartbeat stats */ }

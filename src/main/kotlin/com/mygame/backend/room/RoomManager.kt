@@ -43,6 +43,9 @@ class RoomManager(
 
     fun getRoom(roomId: String): Room? = rooms[roomId]
 
+    fun getPlayerRoom(playerId: String): Room? =
+        rooms.values.firstOrNull { it.players.contains(playerId) }
+
     fun listRooms(gameType: String?): List<Room> {
         return rooms.values.filter { 
             (gameType == null || it.gameType == gameType) && 
