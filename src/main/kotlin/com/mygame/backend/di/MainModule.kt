@@ -6,6 +6,7 @@ import com.mygame.backend.game.GameStateManager
 import com.mygame.backend.game.engine.GameEngineRegistry
 import com.mygame.backend.game.engine.impl.BingoEngine
 import com.mygame.backend.game.engine.impl.NumberGuessEngine
+import com.mygame.backend.game.engine.impl.TicTacToeEngine
 import com.mygame.backend.handler.GameHandler
 import com.mygame.backend.repository.CoinTransactionRepository
 import com.mygame.backend.repository.GameResultRepository
@@ -38,6 +39,7 @@ val appModule = module {
     single(createdAtStart = true) { 
         GameEngineRegistry.register(BingoEngine())
         GameEngineRegistry.register(NumberGuessEngine())
+        GameEngineRegistry.register(TicTacToeEngine())
         GameEngineRegistry
     }
 }

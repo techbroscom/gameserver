@@ -29,10 +29,21 @@ object RewardConfig {
         loserXp = 5
     )
 
+    val TIC_TAC_TOE = GameReward(
+        entryFee = 10,
+        winnerCoins = 50,
+        loserCoins = -10,
+        winnerXp = 30,
+        loserXp = 5,
+        drawCoins = 5,
+        drawXp = 10
+    )
+
     fun get(gameType: String): GameReward {
         return when (gameType) {
             "BINGO" -> BINGO
             "NUMBER_GUESS" -> NUMBER_GUESS
+            "TIC_TAC_TOE" -> TIC_TAC_TOE
             else -> throw IllegalArgumentException("Unknown game type: $gameType")
         }
     }
