@@ -16,4 +16,24 @@ data class Player(
     val createdAt: Long = System.currentTimeMillis()
 ) {
     fun toDto() = PlayerDto(id, username, level)
+    fun toStatsDto() = PlayerStatsDto(id, username, coins, xp, level, elo, gamesPlayed, wins)
 }
+
+@Serializable
+data class PlayerStatsDto(
+    val id: String,
+    val username: String,
+    val coins: Long,
+    val xp: Int,
+    val level: Int,
+    val elo: Int,
+    val gamesPlayed: Int,
+    val wins: Int
+)
+
+@Serializable
+data class LeaderboardEntryDto(
+    val username: String,
+    val elo: Int,
+    val wins: Int
+)

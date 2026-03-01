@@ -49,16 +49,7 @@ fun Route.apiRoutes(
                 val id = call.parameters["id"] ?: return@get call.respondText("Missing ID", status = io.ktor.http.HttpStatusCode.BadRequest)
                 val player = playerRepository.findById(id)
                 if (player != null) {
-                    call.respond(mapOf(
-                        "id" to player.id,
-                        "username" to player.username,
-                        "coins" to player.coins,
-                        "xp" to player.xp,
-                        "level" to player.level,
-                        "elo" to player.elo,
-                        "gamesPlayed" to player.gamesPlayed,
-                        "wins" to player.wins
-                    ))
+                    call.respond(player.toStatsDto())
                 } else {
                     call.respondText("Player not found", status = io.ktor.http.HttpStatusCode.NotFound)
                 }
@@ -96,9 +87,8 @@ fun Route.apiRoutes(
         }
         
         get("/leaderboard") {
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
             val leaders = playerRepository.getLeaderboard(limit).map { 
-                mapOf("username" to it.username, "elo" to it.elo, "wins" to it.wins)
+                LeaderboardEntryDto(it.username, it.elo, it.wins)
             }
             call.respond(leaders)
         }
