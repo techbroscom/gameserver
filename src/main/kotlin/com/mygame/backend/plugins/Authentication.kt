@@ -2,6 +2,7 @@ package com.mygame.backend.plugins
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import io.ktor.http.auth.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
@@ -21,6 +22,18 @@ fun Application.configureAuthentication() {
                     .withIssuer(issuer)
                     .build()
             )
+            authHeader { call ->
+                val authHeader = call.request.parseAuthorizationHeader()
+                if (authHeader != null) return@authHeader authHeader
+                
+                // Fallback to query parameter for WebSockets
+                val token = call.request.queryParameters["token"]
+                if (token != null) {
+                    HttpAuthHeader.Single("Bearer", token)
+                } else {
+                    null
+                }
+            }
             validate { credential ->
                 if (credential.payload.audience.contains(audience)) {
                     JWTPrincipal(credential.payload)
