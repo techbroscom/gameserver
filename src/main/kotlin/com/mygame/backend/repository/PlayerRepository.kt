@@ -55,7 +55,6 @@ class PlayerRepository {
             null
         }
     }
-
     suspend fun updateCoins(id: String, amount: Long): Long? = dbQuery {
         val current = Players.selectAll().where { Players.id eq id }.singleOrNull() ?: return@dbQuery null
         val newBalance = current[Players.coins] + amount
@@ -66,6 +65,24 @@ class PlayerRepository {
         }
         newBalance
     }
+
+    suspend fun collectFreeCoins(id: String): Long? = dbQuery {
+        val player = Players.selectAll().where { Players.id eq id }.singleOrNull() ?: return@dbQuery null
+        val now = System.currentTimeMillis()
+        val lastCollected = player[Players.lastFreeCoinsCollectedAt]
+        val fourHours = 4 * 60 * 60 * 1000L
+
+        if (now - lastCollected < fourHours) return@dbQuery null
+
+        val newBalance = player[Players.coins] + 50
+        Players.update({ Players.id eq id }) {
+            it[coins] = newBalance
+            it[lastFreeCoinsCollectedAt] = now
+        }
+        newBalance
+    }
+
+    suspend fun purchaseCoins(id: String, amount: Long): Long? = updateCoins(id, amount)
 
     suspend fun updateStats(id: String, xpDelta: Int, eloDelta: Int, isWin: Boolean) = dbQuery {
         val current = Players.selectAll().where { Players.id eq id }.singleOrNull() ?: return@dbQuery
@@ -99,6 +116,7 @@ class PlayerRepository {
         elo = row[Players.elo],
         gamesPlayed = row[Players.gamesPlayed],
         wins = row[Players.wins],
+        lastFreeCoinsCollectedAt = row[Players.lastFreeCoinsCollectedAt],
         createdAt = row[Players.createdAt]
     )
 }

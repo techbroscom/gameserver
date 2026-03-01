@@ -63,6 +63,33 @@ fun Route.apiRoutes(
                 val history = coinTransactionRepository.getHistory(id, limit, offset)
                 call.respond(history)
             }
+
+            post("/collect-free") {
+                val principal = call.principal<JWTPrincipal>()
+                val playerId = principal?.payload?.getClaim("id")?.asString() ?: return@post
+                
+                val newBalance = playerRepository.collectFreeCoins(playerId)
+                if (newBalance != null) {
+                    coinTransactionRepository.create(playerId, 50, "FREE_REWARD", newBalance)
+                    call.respond(mapOf("coins" to newBalance))
+                } else {
+                    call.respondText("Reward not ready yet", status = io.ktor.http.HttpStatusCode.TooManyRequests)
+                }
+            }
+
+            post("/purchase") {
+                val principal = call.principal<JWTPrincipal>()
+                val playerId = principal?.payload?.getClaim("id")?.asString() ?: return@post
+                val amount = call.request.queryParameters["amount"]?.toLongOrNull() ?: return@post call.respondText("Invalid amount", status = io.ktor.http.HttpStatusCode.BadRequest)
+                
+                val newBalance = playerRepository.purchaseCoins(playerId, amount)
+                if (newBalance != null) {
+                    coinTransactionRepository.create(playerId, amount, "PURCHASE", newBalance)
+                    call.respond(mapOf("coins" to newBalance))
+                } else {
+                    call.respondText("Purchase failed", status = io.ktor.http.HttpStatusCode.BadRequest)
+                }
+            }
         }
         
         route("/matchmaking") {

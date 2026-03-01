@@ -13,6 +13,7 @@ object Players : Table() {
     val gamesPlayed = integer("games_played").default(0)
     val wins = integer("wins").default(0)
     val lastLogin = long("last_login").default(0)
+    val lastFreeCoinsCollectedAt = long("last_free_coins_collected_at").default(0)
     val createdAt = long("created_at")
 
     override val primaryKey = PrimaryKey(id)

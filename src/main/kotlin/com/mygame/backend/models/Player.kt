@@ -13,10 +13,11 @@ data class Player(
     val elo: Int = 1000,
     val gamesPlayed: Int = 0,
     val wins: Int = 0,
+    val lastFreeCoinsCollectedAt: Long = 0,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     fun toDto() = PlayerDto(id, username, level)
-    fun toStatsDto() = PlayerStatsDto(id, username, coins, xp, level, elo, gamesPlayed, wins)
+    fun toStatsDto() = PlayerStatsDto(id, username, coins, xp, level, elo, gamesPlayed, wins, lastFreeCoinsCollectedAt)
 }
 
 @Serializable
@@ -28,7 +29,8 @@ data class PlayerStatsDto(
     val level: Int,
     val elo: Int,
     val gamesPlayed: Int,
-    val wins: Int
+    val wins: Int,
+    val lastFreeCoinsCollectedAt: Long
 )
 
 @Serializable
