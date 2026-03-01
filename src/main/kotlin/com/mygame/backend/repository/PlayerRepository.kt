@@ -21,8 +21,8 @@ class PlayerRepository {
             .singleOrNull()
     }
 
-    suspend fun create(username: String, passwordPlain: String): Player? {
-         if (findByUsername(username) != null) return null
+    suspend fun create(requestedUsername: String, passwordPlain: String): Player? {
+         if (findByUsername(requestedUsername) != null) return null
          
          val hash = BCrypt.hashpw(passwordPlain, BCrypt.gensalt())
          val userId = UUID.randomUUID().toString()
@@ -30,8 +30,8 @@ class PlayerRepository {
          dbQuery {
             Players.insert {
                 it[id] = userId
-                it[this.username] = username
-                it[this.passwordHash] = hash
+                it[username] = requestedUsername
+                it[passwordHash] = hash
                 it[coins] = 1000
                 it[xp] = 0
                 it[level] = 1
@@ -39,6 +39,7 @@ class PlayerRepository {
                 it[gamesPlayed] = 0
                 it[wins] = 0
                 it[lastLogin] = System.currentTimeMillis()
+                it[lastFreeCoinsCollectedAt] = 0L
                 it[createdAt] = System.currentTimeMillis()
             }
         }
