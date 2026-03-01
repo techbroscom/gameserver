@@ -1,6 +1,7 @@
 package com.mygame.backend.routes
 
 import com.mygame.backend.game.engine.GameEngineRegistry
+import com.mygame.backend.models.LeaderboardEntryDto
 import com.mygame.backend.repository.CoinTransactionRepository
 import com.mygame.backend.repository.PlayerRepository
 import com.mygame.backend.room.MatchmakingService
@@ -87,6 +88,7 @@ fun Route.apiRoutes(
         }
         
         get("/leaderboard") {
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
             val leaders = playerRepository.getLeaderboard(limit).map { 
                 LeaderboardEntryDto(it.username, it.elo, it.wins)
             }
