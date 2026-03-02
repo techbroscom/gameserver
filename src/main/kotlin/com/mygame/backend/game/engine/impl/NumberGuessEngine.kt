@@ -10,14 +10,14 @@ class NumberGuessEngine : GameEngine {
     override val gameType: String = "NUMBER_GUESS"
 
     override fun initializeGame(players: List<Player>, config: Map<String, String>): GameState {
-        val secret = (1..100).random()
         val turnOrder = players.map { it.id }.shuffled()
         
         val initialPlayerStates = players.associate { player ->
             player.id to PlayerGameState(
                 playerId = player.id,
                 custom = mutableMapOf(
-                    "attempts" to JsonPrimitive(0)
+                    "attempts" to JsonPrimitive(0),
+                    "hasSetSecret" to JsonPrimitive(false)
                 )
             )
         }
@@ -26,13 +26,12 @@ class NumberGuessEngine : GameEngine {
             roomId = "",
             gameType = gameType,
             players = initialPlayerStates,
-            phase = GamePhase.IN_PROGRESS,
+            phase = GamePhase.WAITING, // Phase for setting secrets
             turnOrder = turnOrder,
             currentTurnIndex = 0,
             custom = mutableMapOf(
-                "secretNumber" to JsonPrimitive(secret), // Secret! kept in custom state but not sent to client in partial updates usually
                 "totalAttempts" to JsonPrimitive(0),
-                "maxAttempts" to JsonPrimitive(10),
+                "maxAttempts" to JsonPrimitive(20), // Increased max attempts as it's harder now? Or keep 10?
                 "winnerId" to JsonNull
             )
         )
@@ -48,58 +47,103 @@ class NumberGuessEngine : GameEngine {
         opCode: Int,
         payload: Map<String, JsonElement>
     ): EventResult {
-        if (opCode != 10) return EventResult(state, error = "Invalid OpCode")
-        
-        val currentTurnPlayer = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
-        if (senderId != currentTurnPlayer) return EventResult(state, error = "Not your turn")
-
-        val guess = payload["guess"]?.jsonPrimitive?.intOrNull 
-            ?: return EventResult(state, error = "Missing guess")
+        // OpCode 11: Set Secret
+        if (opCode == 11) {
+            if (state.phase != GamePhase.WAITING) return EventResult(state, error = "Secret setting phase over")
             
-        val secret = state.custom["secretNumber"]!!.jsonPrimitive.int
-        val totalAttempts = state.custom["totalAttempts"]!!.jsonPrimitive.int + 1
-        val maxAttempts = state.custom["maxAttempts"]!!.jsonPrimitive.int
-        
-        // Update player attempts
-        val playerState = state.players[senderId]!!
-        val pAttempts = playerState.custom["attempts"]!!.jsonPrimitive.int + 1
-        playerState.custom["attempts"] = JsonPrimitive(pAttempts)
-        
-        state.custom["totalAttempts"] = JsonPrimitive(totalAttempts)
-        
-        val hint = when {
-            guess < secret -> "TOO_LOW"
-            guess > secret -> "TOO_HIGH"
-            else -> "CORRECT"
+            val secret = payload["secret"]?.jsonPrimitive?.intOrNull 
+                ?: return EventResult(state, error = "Missing secret number")
+            
+            if (secret < 1 || secret > 100) return EventResult(state, error = "Secret must be 1-100")
+            
+            state.custom["secret_$senderId"] = JsonPrimitive(secret)
+            state.players[senderId]?.custom?.put("hasSetSecret", JsonPrimitive(true))
+            
+            val allReady = state.players.values.all { p -> 
+                p.custom["hasSetSecret"]?.jsonPrimitive?.boolean == true 
+            }
+            
+            val updatedState = if (allReady) {
+                state.copy(phase = GamePhase.IN_PROGRESS)
+            } else {
+                state
+            }
+            
+            val event = GameEvent(
+                senderId = senderId,
+                roomId = state.roomId,
+                opCode = 11,
+                payload = mapOf(
+                    "playerId" to JsonPrimitive(senderId),
+                    "isReady" to JsonPrimitive(true)
+                ),
+                targetType = TargetType.BROADCAST
+            )
+            
+            return EventResult(updatedState, broadcastToRoom = listOf(event))
         }
-        
-        val event = GameEvent(
-            senderId = senderId,
-            roomId = state.roomId,
-            opCode = 10,
-            payload = mapOf(
-                "playerId" to JsonPrimitive(senderId),
-                "guess" to JsonPrimitive(guess),
-                "hint" to JsonPrimitive(hint),
-                "attemptsLeft" to JsonPrimitive(maxAttempts - totalAttempts)
-            ),
-            targetType = TargetType.BROADCAST
-        )
-        
-        if (hint == "CORRECT") {
-            state.custom["winnerId"] = JsonPrimitive(senderId)
+
+        // OpCode 10: Guess
+        if (opCode == 10) {
+            if (state.phase != GamePhase.IN_PROGRESS) return EventResult(state, error = "Game not in guessing phase")
+            
+            val currentTurnPlayer = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
+            if (senderId != currentTurnPlayer) return EventResult(state, error = "Not your turn")
+
+            val guess = payload["guess"]?.jsonPrimitive?.intOrNull 
+                ?: return EventResult(state, error = "Missing guess")
+                
+            val opponentId = state.players.keys.firstOrNull { it != senderId }
+                ?: return EventResult(state, error = "No opponent found")
+                
+            val secret = state.custom["secret_$opponentId"]?.jsonPrimitive?.int
+                ?: return EventResult(state, error = "Opponent secret not found")
+                
+            val totalAttempts = state.custom["totalAttempts"]!!.jsonPrimitive.int + 1
+            val maxAttempts = state.custom["maxAttempts"]!!.jsonPrimitive.int
+            
+            // Update player attempts
+            val playerState = state.players[senderId]!!
+            val pAttempts = playerState.custom["attempts"]!!.jsonPrimitive.int + 1
+            playerState.custom["attempts"] = JsonPrimitive(pAttempts)
+            
+            state.custom["totalAttempts"] = JsonPrimitive(totalAttempts)
+            
+            val hint = when {
+                guess < secret -> "TOO_LOW"
+                guess > secret -> "TOO_HIGH"
+                else -> "CORRECT"
+            }
+            
+            val event = GameEvent(
+                senderId = senderId,
+                roomId = state.roomId,
+                opCode = 10,
+                payload = mapOf(
+                    "playerId" to JsonPrimitive(senderId),
+                    "guess" to JsonPrimitive(guess),
+                    "hint" to JsonPrimitive(hint),
+                    "attemptsLeft" to JsonPrimitive(maxAttempts - totalAttempts)
+                ),
+                targetType = TargetType.BROADCAST
+            )
+            
+            if (hint == "CORRECT") {
+                state.custom["winnerId"] = JsonPrimitive(senderId)
+            }
+            
+            return EventResult(
+                updatedState = state.copy(currentTurnIndex = state.currentTurnIndex + 1),
+                broadcastToRoom = listOf(event)
+            )
         }
-        
-        return EventResult(
-            updatedState = state.copy(currentTurnIndex = state.currentTurnIndex + 1),
-            broadcastToRoom = listOf(event)
-        )
+
+        return EventResult(state, error = "Invalid OpCode")
     }
 
     override fun checkWinCondition(state: GameState): GameResult? {
         val winnerId = state.custom["winnerId"]?.jsonPrimitive?.contentOrNull
         if (winnerId != null) {
-            // We have a winner
             val winner = winnerId
             val loosers = state.players.keys.filter { it != winner }
             
@@ -123,7 +167,7 @@ class NumberGuessEngine : GameEngine {
                  rankings = rankings,
                  coinDeltas = coinDeltas,
                  xpDeltas = xpDeltas,
-                 summary = mapOf("secretNumber" to state.custom["secretNumber"]!!)
+                 summary = state.custom.filterKeys { it.startsWith("secret_") }
             )
         }
         
@@ -131,28 +175,24 @@ class NumberGuessEngine : GameEngine {
         val maxAttempts = state.custom["maxAttempts"]!!.jsonPrimitive.int
         
         if (totalAttempts >= maxAttempts) {
-            // Draw / Loss for everyone
              val coinDeltas = mutableMapOf<String, Long>()
              val xpDeltas = mutableMapOf<String, Int>()
-             val rankings = mutableListOf<RankedPlayer>()
-             
-             state.players.keys.forEach { pid ->
-                 coinDeltas[pid] = 0 // No loss? Or small loss? Prompt doesn't specify draw coins for NumberGuess.
-                 // "If max attempts reached... no winner (draw)"
-                 // RewardConfig says: entryFee: 0. loserCoins: -10.
-                 // I'll assume 0 change for draw.
-                 xpDeltas[pid] = 5 
-                 rankings.add(RankedPlayer(pid, 1, 0))
-             }
-             
-             return GameResult(
-                 winnerIds = emptyList(),
-                 loserIds = emptyList(),
-                 rankings = rankings,
-                 coinDeltas = coinDeltas,
-                 xpDeltas = xpDeltas,
-                 summary = mapOf("secretNumber" to state.custom["secretNumber"]!!)
-            )
+              val rankings = mutableListOf<RankedPlayer>()
+              
+              state.players.keys.forEach { pid ->
+                  coinDeltas[pid] = 0
+                  xpDeltas[pid] = 5 
+                  rankings.add(RankedPlayer(pid, 1, 0))
+              }
+              
+              return GameResult(
+                  winnerIds = emptyList(),
+                  loserIds = emptyList(),
+                  rankings = rankings,
+                  coinDeltas = coinDeltas,
+                  xpDeltas = xpDeltas,
+                  summary = state.custom.filterKeys { it.startsWith("secret_") }
+             )
         }
         
         return null
