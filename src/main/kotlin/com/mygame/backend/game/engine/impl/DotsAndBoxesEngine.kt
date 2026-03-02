@@ -184,13 +184,14 @@ class DotsAndBoxesEngine : GameEngine {
         state.custom["moveCount"] = JsonPrimitive(moveCount)
         
         // Update player score if boxes completed
+        var updatedPlayers = state.players
         if (boxesCompletedThisTurn > 0) {
             val playerState = state.players[senderId]
             if (playerState != null) {
                 val currentWon = playerState.custom["boxesWon"]?.jsonPrimitive?.intOrNull ?: 0
                 playerState.custom["boxesWon"] = JsonPrimitive(currentWon + boxesCompletedThisTurn)
                 // Also update PlayerGameState score directly
-                state.players.replace(senderId, playerState.copy(score = playerState.score + boxesCompletedThisTurn))
+                updatedPlayers = state.players.replace(senderId, playerState.copy(score = playerState.score + boxesCompletedThisTurn))
             }
         }
 
@@ -198,7 +199,7 @@ class DotsAndBoxesEngine : GameEngine {
         var nextTurnIndex = state.currentTurnIndex
         if (boxesCompletedThisTurn == 0) {
             nextTurnIndex++
-            state.custom["currentTurnIndex"] = JsonPrimitive(nextTurnIndex) // Not strictly needed as we update state directly
+            state.custom["currentTurnIndex"] = JsonPrimitive(nextTurnIndex)
         }
         
         val nextTurnPlayerId = state.turnOrder[nextTurnIndex % state.turnOrder.size]
@@ -223,6 +224,7 @@ class DotsAndBoxesEngine : GameEngine {
         )
 
         val newState = state.copy(
+            players = updatedPlayers,
             currentTurnIndex = nextTurnIndex,
             custom = state.custom
         )
