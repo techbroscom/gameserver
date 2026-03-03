@@ -75,7 +75,8 @@ class NumberGuessEngine : GameEngine {
                 opCode = 11,
                 payload = mapOf(
                     "playerId" to JsonPrimitive(senderId),
-                    "isReady" to JsonPrimitive(true)
+                    "isReady" to JsonPrimitive(true),
+                    "allReady" to JsonPrimitive(allReady)
                 ),
                 targetType = TargetType.BROADCAST
             )
