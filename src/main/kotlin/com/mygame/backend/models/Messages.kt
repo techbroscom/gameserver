@@ -107,6 +107,7 @@ data class GameOverMessage(
 @Serializable @SerialName("EVENT")
 data class EventMessage(
     val senderId: String,
+    val gameType: String,
     val opCode: Int,
     val payload: Map<String, JsonElement>,
     override val timestamp: Long = System.currentTimeMillis()

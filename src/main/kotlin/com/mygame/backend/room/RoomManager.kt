@@ -151,10 +151,10 @@ class RoomManager(
         ) { rid, event ->
             // Broadcast strategy
             if (event.targetType == TargetType.BROADCAST) {
-                 broadcastToRoom(rid, EventMessage(event.senderId, event.opCode, event.payload))
+                 broadcastToRoom(rid, EventMessage(event.senderId, room.gameType, event.opCode, event.payload))
             } else if (event.targetType == TargetType.SPECIFIC_PLAYERS) {
                  event.targetIds.forEach { pid ->
-                     sessionManager.getSession(pid)?.send(EventMessage(event.senderId, event.opCode, event.payload))
+                     sessionManager.getSession(pid)?.send(EventMessage(event.senderId, room.gameType, event.opCode, event.payload))
                  }
             }
         }

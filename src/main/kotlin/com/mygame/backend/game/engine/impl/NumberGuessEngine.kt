@@ -116,6 +116,9 @@ class NumberGuessEngine : GameEngine {
                 else -> "CORRECT"
             }
             
+            val nextTurnIndex = state.currentTurnIndex + 1
+            val nextTurnPlayerId = state.turnOrder[nextTurnIndex % state.turnOrder.size]
+            
             val event = GameEvent(
                 senderId = senderId,
                 roomId = state.roomId,
@@ -124,7 +127,8 @@ class NumberGuessEngine : GameEngine {
                     "playerId" to JsonPrimitive(senderId),
                     "guess" to JsonPrimitive(guess),
                     "hint" to JsonPrimitive(hint),
-                    "attemptsLeft" to JsonPrimitive(maxAttempts - totalAttempts)
+                    "attemptsLeft" to JsonPrimitive(maxAttempts - totalAttempts),
+                    "nextTurnPlayerId" to JsonPrimitive(nextTurnPlayerId)
                 ),
                 targetType = TargetType.BROADCAST
             )
@@ -134,7 +138,7 @@ class NumberGuessEngine : GameEngine {
             }
             
             return EventResult(
-                updatedState = state.copy(currentTurnIndex = state.currentTurnIndex + 1),
+                updatedState = state.copy(currentTurnIndex = nextTurnIndex),
                 broadcastToRoom = listOf(event)
             )
         }
