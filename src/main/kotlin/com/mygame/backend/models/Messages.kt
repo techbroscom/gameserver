@@ -23,7 +23,8 @@ data class CreateRoomMessage(
     val maxPlayers: Int,
     val isPrivate: Boolean,
     val password: String? = null,
-    val entryFee: Long = 0
+    val entryFee: Long = 0,
+    val config: Map<String, String>? = null
 ) : ClientMessage()
 
 @Serializable @SerialName("JOIN_ROOM")

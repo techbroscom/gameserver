@@ -15,6 +15,7 @@ data class Room(
     val password: String? = null,
     val hostPlayerId: String,
     val entryFee: Long,
+    val config: Map<String, String>? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     @Volatile var state: RoomState = RoomState.WAITING

@@ -10,29 +10,67 @@ class TicTacToeEngine : GameEngine {
     override val gameType: String = "TIC_TAC_TOE"
 
     companion object {
-        const val BOARD_SIZE = 3
-        const val TOTAL_CELLS = 9
         const val OP_MAKE_MOVE = 20
 
-        // All 8 winning lines: 3 rows, 3 cols, 2 diagonals
-        val WIN_LINES = listOf(
-            // Rows
-            listOf(0, 1, 2),
-            listOf(3, 4, 5),
-            listOf(6, 7, 8),
-            // Columns
-            listOf(0, 3, 6),
-            listOf(1, 4, 7),
-            listOf(2, 5, 8),
-            // Diagonals
-            listOf(0, 4, 8),
-            listOf(2, 4, 6)
-        )
+        fun generateWinLines(boardSize: Int, winCondition: Int): List<List<Int>> {
+            val lines = mutableListOf<List<Int>>()
+
+            // Horizontal
+            for (r in 0 until boardSize) {
+                for (c in 0..boardSize - winCondition) {
+                    val line = mutableListOf<Int>()
+                    for (i in 0 until winCondition) {
+                        line.add(r * boardSize + (c + i))
+                    }
+                    lines.add(line)
+                }
+            }
+
+            // Vertical
+            for (c in 0 until boardSize) {
+                for (r in 0..boardSize - winCondition) {
+                    val line = mutableListOf<Int>()
+                    for (i in 0 until winCondition) {
+                        line.add((r + i) * boardSize + c)
+                    }
+                    lines.add(line)
+                }
+            }
+
+            // Diagonal (Top-left to Bottom-right)
+            for (r in 0..boardSize - winCondition) {
+                for (c in 0..boardSize - winCondition) {
+                    val line = mutableListOf<Int>()
+                    for (i in 0 until winCondition) {
+                        line.add((r + i) * boardSize + (c + i))
+                    }
+                    lines.add(line)
+                }
+            }
+
+            // Diagonal (Top-right to Bottom-left)
+            for (r in 0..boardSize - winCondition) {
+                for (c in winCondition - 1 until boardSize) {
+                    val line = mutableListOf<Int>()
+                    for (i in 0 until winCondition) {
+                        line.add((r + i) * boardSize + (c - i))
+                    }
+                    lines.add(line)
+                }
+            }
+
+            return lines
+        }
     }
 
     override fun initializeGame(players: List<Player>, config: Map<String, String>): GameState {
-        // Create empty 3x3 board — "" means empty, "X" or "O" for marks
-        val emptyBoard = List(TOTAL_CELLS) { "" }
+        val boardSize = config["boardSize"]?.toIntOrNull() ?: 3
+        val winCondition = if (boardSize >= 5) 4 else 3
+        val totalCells = boardSize * boardSize
+        val winLines = generateWinLines(boardSize, winCondition)
+
+        // Create empty board
+        val emptyBoard = List(totalCells) { "" }
 
         val turnOrder = players.map { it.id }.shuffled()
 
@@ -55,7 +93,7 @@ class TicTacToeEngine : GameEngine {
         }
 
         return GameState(
-            roomId = "", // Will be set by manager
+            roomId = "",
             gameType = gameType,
             players = initialPlayerStates,
             phase = GamePhase.IN_PROGRESS,
@@ -65,13 +103,16 @@ class TicTacToeEngine : GameEngine {
                 "board" to Json.encodeToJsonElement(emptyBoard),
                 "moveCount" to JsonPrimitive(0),
                 "marks" to Json.encodeToJsonElement(marks),
+                "boardSize" to JsonPrimitive(boardSize),
+                "winCondition" to JsonPrimitive(winCondition),
+                "totalCells" to JsonPrimitive(totalCells),
+                "winLines" to Json.encodeToJsonElement(winLines),
                 "startedAt" to JsonPrimitive(System.currentTimeMillis())
             )
         )
     }
 
     override fun onTick(state: GameState, deltaMs: Long): TickResult {
-        // No tick-based logic for Tic Tac Toe
         return TickResult(state)
     }
 
@@ -83,42 +124,34 @@ class TicTacToeEngine : GameEngine {
     ): EventResult {
         if (opCode != OP_MAKE_MOVE) return EventResult(state, error = "Invalid OpCode")
 
-        // Validate turn
         val currentTurnPlayer = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
         if (senderId != currentTurnPlayer) return EventResult(state, error = "Not your turn")
 
-        // Parse cell index
         val cellIndex = payload["cellIndex"]?.jsonPrimitive?.intOrNull
             ?: return EventResult(state, error = "Missing cellIndex")
 
-        if (cellIndex !in 0 until TOTAL_CELLS) return EventResult(state, error = "Cell index out of range")
+        val totalCells = state.custom["totalCells"]?.jsonPrimitive?.intOrNull ?: 9
+        if (cellIndex !in 0 until totalCells) return EventResult(state, error = "Cell index out of range")
 
-        // Get current board
         val board = state.custom["board"]?.jsonArray?.map { it.jsonPrimitive.content }?.toMutableList()
             ?: return EventResult(state, error = "Invalid board state")
 
-        // Validate cell is empty
         if (board[cellIndex].isNotEmpty()) return EventResult(state, error = "Cell already occupied")
 
-        // Get player's mark
         val marks = state.custom["marks"]?.jsonObject
             ?: return EventResult(state, error = "Invalid marks state")
         val playerMark = marks[senderId]?.jsonPrimitive?.content
             ?: return EventResult(state, error = "Player mark not found")
 
-        // Place the mark
         board[cellIndex] = playerMark
 
-        // Update state
         val moveCount = (state.custom["moveCount"]?.jsonPrimitive?.intOrNull ?: 0) + 1
         state.custom["board"] = Json.encodeToJsonElement(board)
         state.custom["moveCount"] = JsonPrimitive(moveCount)
 
-        // Advance turn
         val nextTurnIndex = state.currentTurnIndex + 1
         val nextTurnPlayerId = state.turnOrder[nextTurnIndex % state.turnOrder.size]
 
-        // Create broadcast event
         val event = GameEvent(
             senderId = senderId,
             roomId = state.roomId,
@@ -147,13 +180,16 @@ class TicTacToeEngine : GameEngine {
             ?: return null
         val marks = state.custom["marks"]?.jsonObject ?: return null
         val moveCount = state.custom["moveCount"]?.jsonPrimitive?.intOrNull ?: 0
+        val totalCells = state.custom["totalCells"]?.jsonPrimitive?.intOrNull ?: 9
+        
+        val winLinesJson = state.custom["winLines"]?.jsonArray
+            ?: return null
+        val winLines = winLinesJson.map { line -> line.jsonArray.map { it.jsonPrimitive.int } }
 
-        // Check if any player has won
         for ((playerId, markElement) in marks) {
             val mark = markElement.jsonPrimitive.content
-            for (line in WIN_LINES) {
+            for (line in winLines) {
                 if (line.all { board[it] == mark }) {
-                    // This player wins!
                     val winnerId = playerId
                     val loserId = state.players.keys.first { it != winnerId }
 
@@ -181,11 +217,10 @@ class TicTacToeEngine : GameEngine {
             }
         }
 
-        // Check for draw (all cells filled, no winner)
-        if (moveCount >= TOTAL_CELLS) {
+        if (moveCount >= totalCells) {
             val playerIds = state.players.keys.toList()
             return GameResult(
-                winnerIds = playerIds, // Both are "winners" in a draw
+                winnerIds = playerIds,
                 loserIds = emptyList(),
                 rankings = playerIds.map { RankedPlayer(it, 1, 0) },
                 coinDeltas = playerIds.associateWith { 5L },
@@ -197,7 +232,7 @@ class TicTacToeEngine : GameEngine {
             )
         }
 
-        return null // Game still in progress
+        return null
     }
 
     override fun onPlayerDisconnect(state: GameState, playerId: String): GameState {

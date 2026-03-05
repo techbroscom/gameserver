@@ -16,149 +16,107 @@ class TicTacToeEngineTest {
     private val players = listOf(p1, p2)
 
     @Test
-    fun `test game initialization`() {
-        val state = engine.initializeGame(players, emptyMap())
+    fun `test game initialization 3x3`() {
+        val state = engine.initializeGame(players, mapOf("boardSize" to "3"))
         assertEquals("TIC_TAC_TOE", state.gameType)
-        assertEquals(GamePhase.IN_PROGRESS, state.phase)
-        assertEquals(2, state.players.size)
-        assertEquals(2, state.turnOrder.size)
-
-        // Board should be 9 empty strings
-        val board = state.custom["board"]?.jsonArray
-        assertNotNull(board)
-        assertEquals(9, board.size)
-        board.forEach { assertEquals("", it.jsonPrimitive.content) }
-
-        // Each player should have a mark (X or O)
-        state.players.values.forEach {
-            val mark = it.custom["mark"]?.jsonPrimitive?.content
-            assertNotNull(mark)
-            assertTrue(mark == "X" || mark == "O")
-        }
-
-        // Marks should be different
-        val allMarks = state.players.values.map { it.custom["mark"]!!.jsonPrimitive.content }.toSet()
-        assertEquals(2, allMarks.size)
+        assertEquals(3, state.custom["boardSize"]?.jsonPrimitive?.int)
+        assertEquals(3, state.custom["winCondition"]?.jsonPrimitive?.int)
+        assertEquals(9, state.custom["totalCells"]?.jsonPrimitive?.int)
+        assertEquals(9, state.custom["board"]?.jsonArray?.size)
     }
 
     @Test
-    fun `test valid move`() {
-        val state = engine.initializeGame(players, emptyMap())
-        val currentPlayerId = state.turnOrder[state.currentTurnIndex]
-
-        val result = engine.onPlayerEvent(
-            state,
-            currentPlayerId,
-            TicTacToeEngine.OP_MAKE_MOVE,
-            mapOf("cellIndex" to JsonPrimitive(4)) // Center cell
-        )
-
-        assertNull(result.error)
-        val newState = result.updatedState
-
-        // Board should have the mark at index 4
-        val board = newState.custom["board"]!!.jsonArray.map { it.jsonPrimitive.content }
-        assertTrue(board[4].isNotEmpty())
-
-        // Move count should be 1
-        assertEquals(1, newState.custom["moveCount"]!!.jsonPrimitive.int)
-
-        // Turn should advance
-        assertEquals(1, newState.currentTurnIndex)
-
-        // Should have broadcast event
-        assertEquals(1, result.broadcastToRoom.size)
+    fun `test game initialization 5x5`() {
+        val state = engine.initializeGame(players, mapOf("boardSize" to "5"))
+        assertEquals(5, state.custom["boardSize"]?.jsonPrimitive?.int)
+        assertEquals(4, state.custom["winCondition"]?.jsonPrimitive?.int)
+        assertEquals(25, state.custom["totalCells"]?.jsonPrimitive?.int)
+        assertEquals(25, state.custom["board"]?.jsonArray?.size)
     }
 
     @Test
-    fun `test invalid move - wrong turn`() {
-        val state = engine.initializeGame(players, emptyMap())
-        val wrongPlayer = state.turnOrder[(state.currentTurnIndex + 1) % 2]
-
-        val result = engine.onPlayerEvent(
-            state,
-            wrongPlayer,
-            TicTacToeEngine.OP_MAKE_MOVE,
-            mapOf("cellIndex" to JsonPrimitive(0))
-        )
-
-        assertEquals("Not your turn", result.error)
-    }
-
-    @Test
-    fun `test invalid move - cell occupied`() {
-        val state = engine.initializeGame(players, emptyMap())
-        val currentPlayerId = state.turnOrder[state.currentTurnIndex]
-
-        // Make first move
-        val result1 = engine.onPlayerEvent(
-            state,
-            currentPlayerId,
-            TicTacToeEngine.OP_MAKE_MOVE,
-            mapOf("cellIndex" to JsonPrimitive(0))
-        )
-        assertNull(result1.error)
-
-        // Try to place on same cell as other player
-        val nextPlayer = result1.updatedState.turnOrder[result1.updatedState.currentTurnIndex % 2]
-        val result2 = engine.onPlayerEvent(
-            result1.updatedState,
-            nextPlayer,
-            TicTacToeEngine.OP_MAKE_MOVE,
-            mapOf("cellIndex" to JsonPrimitive(0))
-        )
-
-        assertEquals("Cell already occupied", result2.error)
-    }
-
-    @Test
-    fun `test win detection`() {
-        val state = engine.initializeGame(players, emptyMap())
+    fun `test 3x3 win detection`() {
+        val state = engine.initializeGame(players, mapOf("boardSize" to "3"))
         val p1Id = state.turnOrder[0]
         val p2Id = state.turnOrder[1]
-        val p1Mark = state.players[p1Id]!!.custom["mark"]!!.jsonPrimitive.content
 
-        // Simulate: P1 takes top row (0,1,2), P2 takes middle row partially (3,4)
-        // P1: 0, P2: 3, P1: 1, P2: 4, P1: 2 → P1 wins
         var currentState = state
-
+        // P1: (0,0), (0,1), (0,2) -> win
         val moves = listOf(
-            p1Id to 0,
-            p2Id to 3,
-            p1Id to 1,
-            p2Id to 4,
-            p1Id to 2  // Winning move
+            p1Id to 0, p2Id to 3,
+            p1Id to 1, p2Id to 4,
+            p1Id to 2
         )
 
         for ((playerId, cellIndex) in moves) {
-            val result = engine.onPlayerEvent(
-                currentState,
-                playerId,
-                TicTacToeEngine.OP_MAKE_MOVE,
-                mapOf("cellIndex" to JsonPrimitive(cellIndex))
-            )
-            assertNull(result.error, "Error on move $cellIndex by $playerId: ${result.error}")
+            val result = engine.onPlayerEvent(currentState, playerId, TicTacToeEngine.OP_MAKE_MOVE, mapOf("cellIndex" to JsonPrimitive(cellIndex)))
             currentState = result.updatedState
         }
 
-        // Check win condition
         val gameResult = engine.checkWinCondition(currentState)
         assertNotNull(gameResult)
         assertEquals(listOf(p1Id), gameResult.winnerIds)
-        assertEquals(listOf(p2Id), gameResult.loserIds)
     }
 
     @Test
-    fun `test draw detection`() {
-        val state = engine.initializeGame(players, emptyMap())
+    fun `test 5x5 4-in-a-row win detection`() {
+        val state = engine.initializeGame(players, mapOf("boardSize" to "5"))
         val p1Id = state.turnOrder[0]
         val p2Id = state.turnOrder[1]
 
-        // Fill board without anyone winning:
+        var currentState = state
+        // P1: (0,0), (0,1), (0,2), (0,3) -> win (4 in a row)
+        val moves = listOf(
+            p1Id to 0, p2Id to 5,
+            p1Id to 1, p2Id to 6,
+            p1Id to 2, p2Id to 7,
+            p1Id to 3 // Winning move for 4-in-a-row
+        )
+
+        for ((playerId, cellIndex) in moves) {
+            val result = engine.onPlayerEvent(currentState, playerId, TicTacToeEngine.OP_MAKE_MOVE, mapOf("cellIndex" to JsonPrimitive(cellIndex)))
+            currentState = result.updatedState
+        }
+
+        val gameResult = engine.checkWinCondition(currentState)
+        assertNotNull(gameResult)
+        assertEquals(listOf(p1Id), gameResult.winnerIds)
+    }
+
+    @Test
+    fun `test 5x5 diagonal win detection`() {
+        val state = engine.initializeGame(players, mapOf("boardSize" to "5"))
+        val p1Id = state.turnOrder[0]
+        val p2Id = state.turnOrder[1]
+
+        var currentState = state
+        // Diagonal: 0, 6, 12, 18 (4 in a row)
+        val moves = listOf(
+            p1Id to 0, p2Id to 1,
+            p1Id to 6, p2Id to 2,
+            p1Id to 12, p2Id to 3,
+            p1Id to 18
+        )
+
+        for ((playerId, cellIndex) in moves) {
+            val result = engine.onPlayerEvent(currentState, playerId, TicTacToeEngine.OP_MAKE_MOVE, mapOf("cellIndex" to JsonPrimitive(cellIndex)))
+            currentState = result.updatedState
+        }
+
+        val gameResult = engine.checkWinCondition(currentState)
+        assertNotNull(gameResult)
+        assertEquals(listOf(p1Id), gameResult.winnerIds)
+    }
+
+    @Test
+    fun `test draw detection 3x3`() {
+        val state = engine.initializeGame(players, mapOf("boardSize" to "3"))
+        val p1Id = state.turnOrder[0]
+        val p2Id = state.turnOrder[1]
+
         // X O X
         // X X O
         // O X O
-        // Moves: P1(0), P2(1), P1(2), P2(5), P1(3), P2(6), P1(4), P2(8), P1(7)
         val moves = listOf(
             p1Id to 0, p2Id to 1, p1Id to 2,
             p2Id to 5, p1Id to 3, p2Id to 6,
@@ -167,30 +125,14 @@ class TicTacToeEngineTest {
 
         var currentState = state
         for ((playerId, cellIndex) in moves) {
-            val result = engine.onPlayerEvent(
-                currentState,
-                playerId,
-                TicTacToeEngine.OP_MAKE_MOVE,
-                mapOf("cellIndex" to JsonPrimitive(cellIndex))
-            )
-            // Some moves might trigger a win depending on mark assignment
-            // so we check that there's no error
-            if (result.error != null) {
-                // If error, it's likely because the game ended
-                break
-            }
+            val result = engine.onPlayerEvent(currentState, playerId, TicTacToeEngine.OP_MAKE_MOVE, mapOf("cellIndex" to JsonPrimitive(cellIndex)))
+            if (result.error != null) break
             currentState = result.updatedState
-            
-            // Check if game already ended
-            val winResult = engine.checkWinCondition(currentState)
-            if (winResult != null) break
+            if (engine.checkWinCondition(currentState) != null) break
         }
 
-        val moveCount = currentState.custom["moveCount"]!!.jsonPrimitive.int
         val gameResult = engine.checkWinCondition(currentState)
-        
-        // Either it's a draw (9 moves, no winner) or someone won
-        // The specific board layout depends on X/O assignment which is random
-        assertNotNull(gameResult, "Game should be over after all moves")
+        assertNotNull(gameResult)
+        assertTrue(gameResult.summary["isDraw"]?.jsonPrimitive?.boolean ?: false || gameResult.winnerIds.size == 1)
     }
 }

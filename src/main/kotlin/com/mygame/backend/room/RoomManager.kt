@@ -36,10 +36,10 @@ class RoomManager(
 
     fun createRoom(
         hostId: String, name: String, gameType: String, maxPlayers: Int, 
-        isPrivate: Boolean, password: String?, entryFee: Long
+        isPrivate: Boolean, password: String?, entryFee: Long, config: Map<String, String>? = null
     ): Room {
         val id = IdGenerator.generate()
-        val room = Room(id, name, gameType, maxPlayers, isPrivate, password, hostId, entryFee)
+        val room = Room(id, name, gameType, maxPlayers, isPrivate, password, hostId, entryFee, config)
         rooms[id] = room
         return room
     }
@@ -113,7 +113,7 @@ class RoomManager(
         
         // Initialize Game State
         val players = room.players.mapNotNull { playerRepository.findById(it) }
-        val initialState = engine.initializeGame(players, emptyMap())
+        val initialState = engine.initializeGame(players, room.config ?: emptyMap())
         gameStateManager.setState(roomId, initialState)
         
         room.state = RoomState.IN_GAME

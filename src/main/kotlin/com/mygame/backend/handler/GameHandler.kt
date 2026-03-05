@@ -106,7 +106,8 @@ class GameHandler(
                          maxPlayers = message.maxPlayers,
                          isPrivate = message.isPrivate,
                          password = message.password,
-                         entryFee = fee
+                         entryFee = fee,
+                         config = message.config
                      )
                      
                      // Auto-join host
