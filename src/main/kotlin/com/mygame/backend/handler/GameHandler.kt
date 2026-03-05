@@ -44,12 +44,20 @@ class GameHandler(
             }
         } finally {
             sessionManager.removeSession(playerId)
-            // Handle forceful disconnect logic (e.g. notify room)
-            // RoomManager.leaveRoom handles explicit leave.
-            // Implicit leave needs to be handled? 
-            // The prompt says "On timeout: mark disconnected... Grace period: 10s".
-            // That logic is complex to implement fully here without a persistent "ConnectionManager".
-            // For now, assume simple disconnect.
+            // Handle forceful disconnect logic with grace period
+            val room = roomManager.getPlayerRoom(playerId)
+            if (room != null) {
+                CoroutineScope(Dispatchers.Default).launch {
+                    delay(60000) // 60s grace period
+                    // Check if player reconnected (has a new active session)
+                    if (sessionManager.getSession(playerId) == null) {
+                        logger.info("Grace period expired for player $playerId, removing from room ${room.id}")
+                        roomManager.leaveRoom(playerId, room.id)
+                    } else {
+                        logger.info("Player $playerId reconnected during grace period, keeping in room ${room.id}")
+                    }
+                }
+            }
         }
     }
     
@@ -59,7 +67,7 @@ class GameHandler(
         when (message) {
              is JoinLobbyMessage -> {
                  val room = roomManager.getPlayerRoom(playerId)
-                 if (room != null) {
+                 if (room != null && room.state != RoomState.FINISHED) {
                      logger.info("Player $playerId reconnected to lobby, found active room ${room.id}")
                      // Send RoomJoined first so client moves to room/game page
                      session.send(RoomJoinedMessage(message.requestId, room.toDto()))
