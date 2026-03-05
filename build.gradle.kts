@@ -22,6 +22,22 @@ repositories {
     mavenCentral()
 }
 
+tasks.register<Jar>("fatJar") {
+    group = "build"
+    description = "Assembles a fat JAR archive containing all dependencies."
+    archiveBaseName.set("gameserver")
+    archiveClassifier.set("all")
+    
+    manifest {
+        attributes["Main-Class"] = "com.mygame.backend.ApplicationKt"
+    }
+    
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    with(tasks.jar.get() as CopySpec)
+}
+
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm:$ktor_version")
     implementation("io.ktor:ktor-server-cors-jvm:$ktor_version")
