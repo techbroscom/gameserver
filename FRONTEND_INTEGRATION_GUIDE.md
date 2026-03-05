@@ -4,7 +4,7 @@ This document outlines the API endpoints and WebSocket protocol for the Game Ser
 
 ## 1. HTTP API (REST)
 
-Base URL: `http://<server>:8080`
+Base URL: `http://<server>:8081`
 
 ### Authentication
 **POST** `/auth/register`
@@ -43,7 +43,7 @@ Returns: List of active rooms.
 
 ## 2. WebSocket Protocol (Real-time)
 
-**Endpoint:** `ws://<server>:8080/game`
+**Endpoint:** `ws://<server>:8081/game`
 **Authentication:** You must authenticate the WebSocket connection. The server expects the JWT token to be validated during the handshake. 
 *Implementation Note:* The current server implementation (`WebSockets.kt`) looks for the principal in the call, meaning you likely need to pass the token in the **Authorization header** (Bearer token) if your client supports it, or as a query parameter if the auth plugin is configured for it. *Check specific client library support for headers on WS handshake.*
 

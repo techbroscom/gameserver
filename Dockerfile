@@ -9,5 +9,5 @@ FROM amazoncorretto:17-alpine-jdk
 WORKDIR /app
 # Copy the start script and libs from the build stage
 COPY --from=build /app/build/install/gameserver/ .
-EXPOSE 8080
+EXPOSE 8081
 ENTRYPOINT ["/app/bin/gameserver"]

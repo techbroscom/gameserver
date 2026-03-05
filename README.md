@@ -27,7 +27,7 @@ docker-compose up -d
 ./gradlew run
 ```
 
-The server will start on port `8080`.
+The server will start on port `8081`.
 
 ## API Documentation
 
