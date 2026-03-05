@@ -58,8 +58,17 @@ class GameHandler(
         
         when (message) {
              is JoinLobbyMessage -> {
-                 // Acknowledge? 
-                 // Server sends nothing specific on lobby join usually unless requested.
+                 val room = roomManager.getPlayerRoom(playerId)
+                 if (room != null) {
+                     logger.info("Player $playerId reconnected to lobby, found active room ${room.id}")
+                     // Send RoomJoined first so client moves to room/game page
+                     session.send(RoomJoinedMessage(message.requestId, room.toDto()))
+                     
+                     // If game is already started, send current state
+                     if (room.state == RoomState.IN_GAME) {
+                         roomManager.resendGameState(playerId, room.id)
+                     }
+                 }
              }
              is ListRoomsMessage -> {
                  val rooms = roomManager.listRooms(message.gameType).map { it.toDto() }

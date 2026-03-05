@@ -162,6 +162,30 @@ class RoomManager(
         gameLoops[roomId] = loop
         loop.start()
     }
+
+    suspend fun resendGameState(playerId: String, roomId: String) {
+        val room = rooms[roomId] ?: return
+        val state = gameStateManager.getState(roomId) ?: return
+        val session = sessionManager.getSession(playerId) ?: return
+
+        val myState = state.players[playerId]
+
+        // Reconstruct the per-player state message
+        val perPlayerJson = JsonObject(mapOf(
+            "roomId" to JsonPrimitive(state.roomId),
+            "gameType" to JsonPrimitive(state.gameType),
+            "turnOrder" to JsonArray(state.turnOrder.map { JsonPrimitive(it) }),
+            "currentTurnIndex" to JsonPrimitive(state.currentTurnIndex),
+            "players" to JsonObject(mapOf(
+                playerId to JsonObject(mapOf(
+                    "playerId" to JsonPrimitive(playerId),
+                    "isAlive" to JsonPrimitive(myState?.isAlive ?: true),
+                    "custom" to JsonObject(myState?.custom ?: emptyMap())
+                ))
+            ))
+        ))
+        session.send(GameStartedMessage(perPlayerJson))
+    }
     
     fun getGameLoop(roomId: String): GameLoop? = gameLoops[roomId]
 
