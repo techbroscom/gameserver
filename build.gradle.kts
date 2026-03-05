@@ -26,7 +26,7 @@ tasks.register<Jar>("fatJar") {
     group = "build"
     description = "Assembles a fat JAR archive containing all dependencies."
     archiveBaseName.set("gameserver")
-    archiveClassifier.set("all")
+    archiveClassifier.set("")
     
     manifest {
         attributes["Main-Class"] = "com.mygame.backend.ApplicationKt"
