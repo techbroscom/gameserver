@@ -128,8 +128,10 @@ class RoomManager(
             val perPlayerJson = JsonObject(mapOf(
                 "roomId" to JsonPrimitive(initialState.roomId),
                 "gameType" to JsonPrimitive(initialState.gameType),
+                "phase" to JsonPrimitive(initialState.phase.name),
                 "turnOrder" to JsonArray(initialState.turnOrder.map { JsonPrimitive(it) }),
                 "currentTurnIndex" to JsonPrimitive(initialState.currentTurnIndex),
+                "custom" to JsonObject(initialState.custom),
                 "players" to JsonObject(mapOf(
                     p.id to JsonObject(mapOf(
                         "playerId" to JsonPrimitive(p.id),
@@ -174,8 +176,10 @@ class RoomManager(
         val perPlayerJson = JsonObject(mapOf(
             "roomId" to JsonPrimitive(state.roomId),
             "gameType" to JsonPrimitive(state.gameType),
+            "phase" to JsonPrimitive(state.phase.name),
             "turnOrder" to JsonArray(state.turnOrder.map { JsonPrimitive(it) }),
             "currentTurnIndex" to JsonPrimitive(state.currentTurnIndex),
+            "custom" to JsonObject(state.custom),
             "players" to JsonObject(mapOf(
                 playerId to JsonObject(mapOf(
                     "playerId" to JsonPrimitive(playerId),

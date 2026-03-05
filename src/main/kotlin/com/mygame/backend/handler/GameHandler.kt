@@ -47,7 +47,9 @@ class GameHandler(
                 }
             }
         } finally {
-            sessionManager.removeSession(playerId)
+            if (sessionManager.getSession(playerId) === playerSession) {
+                sessionManager.removeSession(playerId)
+            }
             // Handle forceful disconnect logic with grace period
             val room = roomManager.getPlayerRoom(playerId)
             if (room != null) {
