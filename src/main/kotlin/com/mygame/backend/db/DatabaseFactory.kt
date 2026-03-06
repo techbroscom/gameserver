@@ -22,6 +22,25 @@ object DatabaseFactory {
         )
 
         transaction(database) {
+            // Check if the old 'gamename' column exists. If it does, we assume 'username' is the old login name
+            // and we need to rename them to 'auth_id' and 'username' respectively.
+            exec("""
+                DO ${'$'}${'$'}
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'players' AND column_name = 'gamename'
+                    ) THEN
+                        -- Rename the old login identifier 'username' to 'auth_id'
+                        ALTER TABLE players RENAME COLUMN username TO auth_id;
+                        -- Rename the old display name 'gamename' to 'username'
+                        ALTER TABLE players RENAME COLUMN gamename TO username;
+                    END IF;
+                END
+                ${'$'}${'$'};
+            """)
+
             SchemaUtils.createMissingTablesAndColumns(Players, CoinTransactions, GameResults)
         }
     }
