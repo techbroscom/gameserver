@@ -163,6 +163,14 @@ class GameHandler(
                      session.send(ErrorMessage(message.requestId, 4008, "You are not in a room"))
                  }
              }
+             is VoiceSignalingMessage -> {
+                 val targetSession = sessionManager.getSession(message.targetId)
+                 if (targetSession != null) {
+                     targetSession.send(VoiceSignalingEvent(playerId, message.signal))
+                 } else {
+                     logger.warn("Voice signal target ${message.targetId} not found for player $playerId")
+                 }
+             }
              is PingMessage -> session.send(ServerPongMessage(message.requestId))
              is PongMessage -> { /* Handle heartbeat stats */ }
              is EndGameMessage -> { /* handling end game manually */ }
