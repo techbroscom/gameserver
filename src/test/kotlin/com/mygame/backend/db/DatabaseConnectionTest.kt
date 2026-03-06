@@ -9,9 +9,9 @@ class DatabaseConnectionTest {
     @Test
     fun `test database connection`() {
         val config = HikariConfig().apply {
-            jdbcUrl = "jdbc:postgresql://ep-falling-wave-a1s2ibgv.ap-southeast-1.pg.koyeb.app/gameserver"
-            username = "koyeb-adm"
-            password = "npg_Q9rnRlIzv3ce"
+            jdbcUrl = "jdbc:postgresql://gameserver-techbroscommunity-8b49.a.aivencloud.com:11174/defaultdb?sslmode=require"
+            username = "avnadmin"
+            password = ""
             driverClassName = "org.postgresql.Driver"
             maximumPoolSize = 1 // minimal pool for testing
             connectionTimeout = 5000 // 5 seconds timeout
