@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Player(
     val id: String,
-    val username: String,
+    val authId: String,
+    val username: String?,
     // Sensitive data like password hash is not in the base model or is transient
     val coins: Long = 500,
     val xp: Int = 0,
@@ -16,14 +17,15 @@ data class Player(
     val lastFreeCoinsCollectedAt: Long = 0,
     val createdAt: Long = System.currentTimeMillis()
 ) {
-    fun toDto() = PlayerDto(id, username, level)
-    fun toStatsDto() = PlayerStatsDto(id, username, coins, xp, level, elo, gamesPlayed, wins, lastFreeCoinsCollectedAt)
+    fun toDto() = PlayerDto(id, authId, username, level)
+    fun toStatsDto() = PlayerStatsDto(id, authId, username, coins, xp, level, elo, gamesPlayed, wins, lastFreeCoinsCollectedAt)
 }
 
 @Serializable
 data class PlayerStatsDto(
     val id: String,
-    val username: String,
+    val authId: String,
+    val username: String?,
     val coins: Long,
     val xp: Int,
     val level: Int,
@@ -35,7 +37,8 @@ data class PlayerStatsDto(
 
 @Serializable
 data class LeaderboardEntryDto(
-    val username: String,
+    val authId: String,
+    val username: String?,
     val elo: Int,
     val wins: Int
 )

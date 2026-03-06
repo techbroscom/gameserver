@@ -21,6 +21,11 @@ data class MatchmakingRequest(
     val maxPlayers: Int = 2
 )
 
+@Serializable
+data class UpdateUsernameRequest(
+    val username: String
+)
+
 fun Route.apiRoutes(
     roomManager: RoomManager, 
     matchmakingService: MatchmakingService,
@@ -90,6 +95,34 @@ fun Route.apiRoutes(
                     call.respondText("Purchase failed", status = io.ktor.http.HttpStatusCode.BadRequest)
                 }
             }
+
+            post("/username") {
+                val principal = call.principal<JWTPrincipal>()
+                val playerId = principal?.payload?.getClaim("id")?.asString() ?: return@post
+                val req = try { call.receive<UpdateUsernameRequest>() } catch(e: Exception) { return@post call.respondText("Invalid request format", status = io.ktor.http.HttpStatusCode.BadRequest) }
+                
+                val username = req.username.trim()
+                if (username.isBlank()) {
+                    return@post call.respondText("Username cannot be empty", status = io.ktor.http.HttpStatusCode.BadRequest)
+                }
+                
+                val success = playerRepository.updateUsername(playerId, username)
+                if (success) {
+                    call.respond(mapOf("status" to "SUCCESS", "username" to username))
+                } else {
+                    val suggestions = mutableListOf<String>()
+                    while(suggestions.size < 3) {
+                        val suggested = username + kotlin.random.Random.nextInt(1000, 9999).toString()
+                        if (!playerRepository.isUsernameTaken(suggested)) {
+                            suggestions.add(suggested)
+                        }
+                    }
+                    call.respond(io.ktor.http.HttpStatusCode.Conflict, mapOf(
+                        "error" to "Username already taken",
+                        "suggestions" to suggestions
+                    ))
+                }
+            }
         }
         
         route("/matchmaking") {
@@ -117,7 +150,7 @@ fun Route.apiRoutes(
         get("/leaderboard") {
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
             val leaders = playerRepository.getLeaderboard(limit).map { 
-                LeaderboardEntryDto(it.username, it.elo, it.wins)
+                LeaderboardEntryDto(it.authId, it.username, it.elo, it.wins)
             }
             call.respond(leaders)
         }

@@ -15,14 +15,14 @@ class PlayerRepository {
             .singleOrNull()
     }
 
-    suspend fun findByUsername(username: String): Player? = dbQuery {
-        Players.selectAll().where { Players.username eq username }
+    suspend fun findByAuthId(authId: String): Player? = dbQuery {
+        Players.selectAll().where { Players.authId eq authId }
             .map { toPlayer(it) }
             .singleOrNull()
     }
 
-    suspend fun create(requestedUsername: String, passwordPlain: String): Player? {
-         if (findByUsername(requestedUsername) != null) return null
+    suspend fun create(requestedAuthId: String, passwordPlain: String): Player? {
+         if (findByAuthId(requestedAuthId) != null) return null
          
          val hash = BCrypt.hashpw(passwordPlain, BCrypt.gensalt())
          val userId = UUID.randomUUID().toString()
@@ -30,7 +30,8 @@ class PlayerRepository {
          dbQuery {
             Players.insert {
                 it[id] = userId
-                it[username] = requestedUsername
+                it[authId] = requestedAuthId
+                it[username] = null
                 it[passwordHash] = hash
                 it[coins] = 1000
                 it[xp] = 0
@@ -46,8 +47,8 @@ class PlayerRepository {
         return findById(userId)
     }
 
-    suspend fun validateCredentials(username: String, passwordPlain: String): Player? = dbQuery {
-        val row = Players.selectAll().where { Players.username eq username }.singleOrNull() ?: return@dbQuery null
+    suspend fun validateCredentials(authId: String, passwordPlain: String): Player? = dbQuery {
+        val row = Players.selectAll().where { Players.authId eq authId }.singleOrNull() ?: return@dbQuery null
         val storedHash = row[Players.passwordHash]
         
         if (BCrypt.checkpw(passwordPlain, storedHash)) {
@@ -108,8 +109,22 @@ class PlayerRepository {
             .map { toPlayer(it) }
     }
 
+    suspend fun isUsernameTaken(username: String): Boolean = dbQuery {
+        Players.selectAll().where { Players.username eq username }.count() > 0
+    }
+
+    suspend fun updateUsername(id: String, username: String): Boolean = dbQuery {
+        if (isUsernameTaken(username)) return@dbQuery false
+        
+        val rowsUpdated = Players.update({ Players.id eq id }) {
+            it[Players.username] = username
+        }
+        rowsUpdated > 0
+    }
+
     private fun toPlayer(row: ResultRow): Player = Player(
         id = row[Players.id],
+        authId = row[Players.authId],
         username = row[Players.username],
         coins = row[Players.coins],
         xp = row[Players.xp],

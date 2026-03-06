@@ -4,7 +4,8 @@ import org.jetbrains.exposed.sql.Table
 
 object Players : Table() {
     val id = varchar("id", 128)
-    val username = varchar("username", 50).uniqueIndex()
+    val authId = varchar("auth_id", 50).uniqueIndex() // Internal login identifier (e.g., google_uid, guest_uid)
+    val username = varchar("username", 50).nullable().uniqueIndex() // Display username
     val passwordHash = varchar("password_hash", 255)
     val coins = long("coins").default(500)
     val xp = integer("xp").default(0)

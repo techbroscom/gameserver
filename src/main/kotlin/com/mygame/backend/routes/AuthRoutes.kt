@@ -25,10 +25,10 @@ fun Route.authRoutes(playerRepository: PlayerRepository, config: ApplicationConf
         } catch (e: Exception) {
             return@post call.respondText("Invalid request format", status = io.ktor.http.HttpStatusCode.BadRequest)
         }
-        val username = request.username
+        val authId = request.authId
         val password = request.password
 
-        val player = playerRepository.create(username, password)
+        val player = playerRepository.create(authId, password)
         if (player != null) {
             val token = JWT.create()
                 .withAudience(audience)
@@ -39,7 +39,7 @@ fun Route.authRoutes(playerRepository: PlayerRepository, config: ApplicationConf
                 
             call.respond(AuthResponse(token, player.toDto()))
         } else {
-            call.respondText("Username already exists", status = io.ktor.http.HttpStatusCode.Conflict)
+            call.respondText("User already exists", status = io.ktor.http.HttpStatusCode.Conflict)
         }
     }
 
@@ -49,10 +49,10 @@ fun Route.authRoutes(playerRepository: PlayerRepository, config: ApplicationConf
         } catch (e: Exception) {
             return@post call.respondText("Invalid request format", status = io.ktor.http.HttpStatusCode.BadRequest)
         }
-        val username = request.username
+        val authId = request.authId
         val password = request.password
         
-        val player = playerRepository.validateCredentials(username, password)
+        val player = playerRepository.validateCredentials(authId, password)
         if (player != null) {
             val token = JWT.create()
                 .withAudience(audience)
