@@ -122,6 +122,13 @@ class PlayerRepository {
         rowsUpdated > 0
     }
 
+    suspend fun updateAvatar(id: String, avatarId: String): Boolean = dbQuery {
+        val rowsUpdated = Players.update({ Players.id eq id }) {
+            it[Players.avatarId] = avatarId
+        }
+        rowsUpdated > 0
+    }
+
     private fun toPlayer(row: ResultRow): Player = Player(
         id = row[Players.id],
         authId = row[Players.authId],
@@ -133,6 +140,7 @@ class PlayerRepository {
         gamesPlayed = row[Players.gamesPlayed],
         wins = row[Players.wins],
         lastFreeCoinsCollectedAt = row[Players.lastFreeCoinsCollectedAt],
+        avatarId = row[Players.avatarId],
         createdAt = row[Players.createdAt]
     )
 }

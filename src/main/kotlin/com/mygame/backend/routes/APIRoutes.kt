@@ -14,6 +14,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 
+
 @Serializable
 data class MatchmakingRequest(
     val gameType: String = "BINGO",
@@ -24,6 +25,11 @@ data class MatchmakingRequest(
 @Serializable
 data class UpdateUsernameRequest(
     val username: String
+)
+
+@Serializable
+data class UpdateAvatarRequest(
+    val avatarId: String
 )
 
 fun Route.apiRoutes(
@@ -123,6 +129,19 @@ fun Route.apiRoutes(
                     ))
                 }
             }
+
+            post("/avatar") {
+                val principal = call.principal<JWTPrincipal>()
+                val playerId = principal?.payload?.getClaim("id")?.asString() ?: return@post
+                val req = try { call.receive<UpdateAvatarRequest>() } catch(e: Exception) { return@post call.respondText("Invalid request format", status = io.ktor.http.HttpStatusCode.BadRequest) }
+                
+                val success = playerRepository.updateAvatar(playerId, req.avatarId)
+                if (success) {
+                    call.respond(mapOf("status" to "SUCCESS", "avatarId" to req.avatarId))
+                } else {
+                    call.respondText("Failed to update avatar", status = io.ktor.http.HttpStatusCode.InternalServerError)
+                }
+            }
         }
         
         route("/matchmaking") {
@@ -150,7 +169,7 @@ fun Route.apiRoutes(
         get("/leaderboard") {
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
             val leaders = playerRepository.getLeaderboard(limit).map { 
-                LeaderboardEntryDto(it.authId, it.username, it.elo, it.wins)
+                LeaderboardEntryDto(it.authId, it.username, it.elo, it.wins, it.avatarId)
             }
             call.respond(leaders)
         }
