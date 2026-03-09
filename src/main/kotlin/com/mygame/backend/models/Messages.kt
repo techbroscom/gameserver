@@ -140,10 +140,3 @@ data class RoomDto(
     val entryFee: Long
 )
 
-@Serializable
-data class PlayerDto(
-    val id: String,
-    val authId: String,
-    val username: String?,
-    val level: Int
-)
