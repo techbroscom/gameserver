@@ -1,5 +1,6 @@
 package com.mygame.backend.plugins
 
+import com.mygame.backend.economy.EconomyService
 import com.mygame.backend.repository.CoinTransactionRepository
 import com.mygame.backend.repository.PlayerRepository
 import com.mygame.backend.room.MatchmakingService
@@ -17,6 +18,7 @@ fun Application.configureRouting() {
     val roomManager by inject<RoomManager>()
     val matchmakingService by inject<MatchmakingService>()
     val coinTransactionRepository by inject<CoinTransactionRepository>()
+    val economyService by inject<EconomyService>()
     
     routing {
         get("/") {
@@ -27,6 +29,6 @@ fun Application.configureRouting() {
         }
         
         authRoutes(playerRepository, environment.config)
-        apiRoutes(roomManager, matchmakingService, playerRepository, coinTransactionRepository)
+        apiRoutes(roomManager, matchmakingService, playerRepository, coinTransactionRepository, economyService)
     }
 }

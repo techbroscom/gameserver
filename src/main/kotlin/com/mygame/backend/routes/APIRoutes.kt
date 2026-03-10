@@ -1,5 +1,6 @@
 package com.mygame.backend.routes
 
+import com.mygame.backend.economy.EconomyService
 import com.mygame.backend.game.engine.GameEngineRegistry
 import com.mygame.backend.models.LeaderboardEntryDto
 import com.mygame.backend.repository.CoinTransactionRepository
@@ -36,7 +37,8 @@ fun Route.apiRoutes(
     roomManager: RoomManager, 
     matchmakingService: MatchmakingService,
     playerRepository: PlayerRepository,
-    coinTransactionRepository: CoinTransactionRepository
+    coinTransactionRepository: CoinTransactionRepository,
+    economyService: EconomyService
 ) {
     authenticate("auth-jwt") {
         route("/rooms") {
@@ -85,6 +87,22 @@ fun Route.apiRoutes(
                     call.respond(mapOf("coins" to newBalance))
                 } else {
                     call.respondText("Reward not ready yet", status = io.ktor.http.HttpStatusCode.TooManyRequests)
+                }
+            }
+
+            post("/claim-daily-reward") {
+                val principal = call.principal<JWTPrincipal>()
+                val playerId = principal?.payload?.getClaim("id")?.asString() ?: return@post
+                
+                val result = economyService.claimDailyReward(playerId)
+                if (result.success) {
+                    call.respond(mapOf(
+                        "amount" to result.amount,
+                        "newBalance" to result.newBalance,
+                        "streak" to result.streak
+                    ))
+                } else {
+                    call.respondText("Daily reward already claimed or player not found", status = io.ktor.http.HttpStatusCode.BadRequest)
                 }
             }
 

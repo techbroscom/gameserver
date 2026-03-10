@@ -15,11 +15,13 @@ data class Player(
     val gamesPlayed: Int = 0,
     val wins: Int = 0,
     val lastFreeCoinsCollectedAt: Long = 0,
+    val lastDailyRewardClaimedAt: Long = 0,
+    val loginStreak: Int = 0,
     val avatarId: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     fun toDto() = PlayerDto(id, authId, username, level, avatarId)
-    fun toStatsDto() = PlayerStatsDto(id, authId, username, coins, xp, level, elo, gamesPlayed, wins, lastFreeCoinsCollectedAt, avatarId)
+    fun toStatsDto() = PlayerStatsDto(id, authId, username, coins, xp, level, elo, gamesPlayed, wins, lastFreeCoinsCollectedAt, lastDailyRewardClaimedAt, loginStreak, avatarId)
 }
 
 @Serializable
@@ -43,6 +45,8 @@ data class PlayerStatsDto(
     val gamesPlayed: Int,
     val wins: Int,
     val lastFreeCoinsCollectedAt: Long,
+    val lastDailyRewardClaimedAt: Long,
+    val loginStreak: Int,
     val avatarId: String?
 )
 

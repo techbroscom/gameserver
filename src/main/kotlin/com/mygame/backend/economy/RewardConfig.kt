@@ -49,6 +49,11 @@ object RewardConfig {
         drawXp = 10
     )
 
+    const val DAILY_LOGIN_REWARD = 200L
+    const val STREAK_BONUS = 50L
+    const val LEVEL_UP_REWARD_COINS = 500L
+    const val LEVEL_UP_REWARD_ELO = 10
+
     fun get(gameType: String): GameReward {
         return when (gameType) {
             "BINGO" -> BINGO

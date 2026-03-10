@@ -132,13 +132,15 @@ class RoomManager(
                 "turnOrder" to JsonArray(initialState.turnOrder.map { JsonPrimitive(it) }),
                 "currentTurnIndex" to JsonPrimitive(initialState.currentTurnIndex),
                 "custom" to JsonObject(initialState.custom),
-                "players" to JsonObject(mapOf(
-                    p.id to JsonObject(mapOf(
-                        "playerId" to JsonPrimitive(p.id),
-                        "isAlive" to JsonPrimitive(myState?.isAlive ?: true),
-                        "custom" to JsonObject(myState?.custom ?: emptyMap())
+                "players" to JsonObject(players.associate { other ->
+                    other.id to JsonObject(mapOf(
+                        "playerId" to JsonPrimitive(other.id),
+                        "username" to JsonPrimitive(other.username ?: ""),
+                        "avatarId" to JsonPrimitive(other.avatarId ?: ""),
+                        "isAlive" to JsonPrimitive(initialState.players[other.id]?.isAlive ?: true),
+                        "custom" to JsonObject(initialState.players[other.id]?.custom ?: emptyMap())
                     ))
-                ))
+                })
             ))
             session?.send(GameStartedMessage(perPlayerJson))
         }
@@ -180,13 +182,15 @@ class RoomManager(
             "turnOrder" to JsonArray(state.turnOrder.map { JsonPrimitive(it) }),
             "currentTurnIndex" to JsonPrimitive(state.currentTurnIndex),
             "custom" to JsonObject(state.custom),
-            "players" to JsonObject(mapOf(
-                playerId to JsonObject(mapOf(
-                    "playerId" to JsonPrimitive(playerId),
-                    "isAlive" to JsonPrimitive(myState?.isAlive ?: true),
-                    "custom" to JsonObject(myState?.custom ?: emptyMap())
+            "players" to JsonObject(room.players.mapNotNull { playerRepository.findById(it) }.associate { other ->
+                other.id to JsonObject(mapOf(
+                    "playerId" to JsonPrimitive(other.id),
+                    "username" to JsonPrimitive(other.username ?: ""),
+                    "avatarId" to JsonPrimitive(other.avatarId ?: ""),
+                    "isAlive" to JsonPrimitive(state.players[other.id]?.isAlive ?: true),
+                    "custom" to JsonObject(state.players[other.id]?.custom ?: emptyMap())
                 ))
-            ))
+            })
         ))
         session.send(GameStartedMessage(perPlayerJson))
     }

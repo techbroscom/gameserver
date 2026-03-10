@@ -84,6 +84,48 @@ class PlayerRepository {
         newBalance
     }
 
+    suspend fun updateLoginStreak(id: String, now: Long) = dbQuery {
+        val player = Players.selectAll().where { Players.id eq id }.singleOrNull() ?: return@dbQuery
+        val lastLogin = player[Players.lastLogin]
+        val currentStreak = player[Players.loginStreak]
+        
+        val oneDayMs = 24 * 60 * 60 * 1000L
+        val twoDaysMs = 48 * 60 * 60 * 1000L
+        
+        val newStreak = when {
+            lastLogin == 0L -> 1
+            now - lastLogin < oneDayMs -> currentStreak // Same day login, no change
+            now - lastLogin < twoDaysMs -> currentStreak + 1 // Consecutive day
+            else -> 1 // Streak broken
+        }
+        
+        Players.update({ Players.id eq id }) {
+            it[Players.lastLogin] = now
+            it[Players.loginStreak] = newStreak
+        }
+    }
+
+    suspend fun claimDailyReward(id: String, amount: Long, now: Long): Long? = dbQuery {
+        val player = Players.selectAll().where { Players.id eq id }.singleOrNull() ?: return@dbQuery null
+        val lastClaimed = player[Players.lastDailyRewardClaimedAt]
+        val oneDayMs = 24 * 60 * 60 * 1000L
+
+        if (now - lastClaimed < oneDayMs) return@dbQuery null
+
+        val newBalance = player[Players.coins] + amount
+        Players.update({ Players.id eq id }) {
+            it[coins] = newBalance
+            it[lastDailyRewardClaimedAt] = now
+        }
+        newBalance
+    }
+
+    suspend fun updateLevel(id: String, newLevel: Int) = dbQuery {
+        Players.update({ Players.id eq id }) {
+            it[level] = newLevel
+        }
+    }
+
     suspend fun purchaseCoins(id: String, amount: Long): Long? = updateCoins(id, amount)
 
     suspend fun updateStats(id: String, xpDelta: Int, eloDelta: Int, isWin: Boolean) = dbQuery {
@@ -140,6 +182,8 @@ class PlayerRepository {
         gamesPlayed = row[Players.gamesPlayed],
         wins = row[Players.wins],
         lastFreeCoinsCollectedAt = row[Players.lastFreeCoinsCollectedAt],
+        lastDailyRewardClaimedAt = row[Players.lastDailyRewardClaimedAt],
+        loginStreak = row[Players.loginStreak],
         avatarId = row[Players.avatarId],
         createdAt = row[Players.createdAt]
     )
