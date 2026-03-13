@@ -52,6 +52,13 @@ data class PingMessage(override val requestId: String) : ClientMessage()
 @Serializable @SerialName("PONG")
 data class PongMessage(override val requestId: String) : ClientMessage()
 
+@Serializable @SerialName("VOICE_SIGNAL")
+data class VoiceSignalMessage(
+    override val requestId: String,
+    val targetId: String,
+    val signal: JsonElement
+) : ClientMessage()
+
 // --------------------------------------------------------
 
 @Serializable
@@ -111,6 +118,13 @@ data class EventMessage(
     val gameType: String,
     val opCode: Int,
     val payload: Map<String, JsonElement>,
+    override val timestamp: Long = System.currentTimeMillis()
+) : ServerMessage()
+
+@Serializable @SerialName("VOICE_SIGNAL")
+data class ServerVoiceSignalMessage(
+    val senderId: String,
+    val signal: JsonElement,
     override val timestamp: Long = System.currentTimeMillis()
 ) : ServerMessage()
 

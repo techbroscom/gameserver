@@ -166,6 +166,19 @@ class GameHandler(
              is PingMessage -> session.send(ServerPongMessage(message.requestId))
              is PongMessage -> { /* Handle heartbeat stats */ }
              is EndGameMessage -> { /* handling end game manually */ }
+             is VoiceSignalMessage -> {
+                 val targetSession = sessionManager.getSession(message.targetId)
+                 if (targetSession != null) {
+                     targetSession.send(ServerVoiceSignalMessage(
+                         senderId = playerId,
+                         signal = message.signal
+                     ))
+                 } else {
+                     // Optionally send an error if target is offline, though for WebRTC 
+                     // usually we just let it fail silently or let the client handle timeout.
+                     logger.debug("VoiceSignal target ${message.targetId} not found for $playerId")
+                 }
+             }
              else -> {}
         }
     }

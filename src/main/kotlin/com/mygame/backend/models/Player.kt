@@ -20,7 +20,7 @@ data class Player(
     val avatarId: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
-    fun toDto() = PlayerDto(id, authId, username, level, avatarId)
+    fun toDto() = PlayerDto(id, authId, username, level, coins, lastFreeCoinsCollectedAt, lastDailyRewardClaimedAt, loginStreak, avatarId)
     fun toStatsDto() = PlayerStatsDto(id, authId, username, coins, xp, level, elo, gamesPlayed, wins, lastFreeCoinsCollectedAt, lastDailyRewardClaimedAt, loginStreak, avatarId)
 }
 
@@ -30,6 +30,10 @@ data class PlayerDto(
     val authId: String,
     val username: String?,
     val level: Int,
+    val coins: Long,
+    val lastFreeCoinsCollectedAt: Long,
+    val lastDailyRewardClaimedAt: Long,
+    val loginStreak: Int,
     val avatarId: String?
 )
 
