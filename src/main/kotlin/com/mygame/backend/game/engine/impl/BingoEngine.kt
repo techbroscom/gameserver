@@ -55,20 +55,16 @@ class BingoEngine : GameEngine {
     }
 
     override fun onTick(state: GameState, deltaMs: Long): TickResult {
-        val lastMove =
-            state.custom["lastMoveTimestamp"]?.jsonPrimitive?.long ?: System.currentTimeMillis()
+        val lastMove = state.custom["lastMoveTimestamp"]?.jsonPrimitive?.longOrNull ?: System.currentTimeMillis()
         val now = System.currentTimeMillis()
-
-        if (now - lastMove > MOVE_TIMEOUT_MS && state.phase == GamePhase.IN_PROGRESS) {
+        
+        if (now - lastMove > MOVE_TIMEOUT_MS && state.phase == GamePhase.IN_PROGRESS && state.custom["forfeitedPlayerId"] == null) {
             val currentTurnPlayer = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
             state.custom["forfeitedPlayerId"] = JsonPrimitive(currentTurnPlayer)
-            // No need to broadcast an event here as checkWinCondition will be called by the loop
-            // and it will trigger GAME_OVER.
         }
-
+        
         return TickResult(state)
     }
-
     override fun onPlayerEvent(
         state: GameState,
         senderId: String,
@@ -173,7 +169,7 @@ class BingoEngine : GameEngine {
         val losers = mutableListOf<String>()
 
         // Check for timeout/forfeit first
-        val forfeitId = state.custom["forfeitedPlayerId"]?.jsonPrimitive?.contentOrNull
+        val forfeitId = state.custom["forfeitedPlayerId"]?.jsonPrimitive?.content
         if (forfeitId != null) {
             val opponentId = state.players.keys.firstOrNull { it != forfeitId }
             if (opponentId != null) {
