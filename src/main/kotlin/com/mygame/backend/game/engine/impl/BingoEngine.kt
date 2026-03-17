@@ -13,6 +13,7 @@ class BingoEngine : GameEngine {
         const val BOARD_SIZE = 5
         const val MAX_LINES = 5
         const val OP_CALL_NUMBER = 10
+        const val MOVE_TIMEOUT_MS = 30000L
     }
 
     override fun initializeGame(players: List<Player>, config: Map<String, String>): GameState {
@@ -47,14 +48,23 @@ class BingoEngine : GameEngine {
             custom = mutableMapOf(
                 "calledNumbers" to JsonArray(emptyList()),
                 "turnNumber" to JsonPrimitive(1),
-                "startedAt" to JsonPrimitive(System.currentTimeMillis())
+                "startedAt" to JsonPrimitive(System.currentTimeMillis()),
+                "lastMoveTimestamp" to JsonPrimitive(System.currentTimeMillis())
             )
         )
     }
 
     override fun onTick(state: GameState, deltaMs: Long): TickResult {
-        // Check turn timeout logic here if needed
-        // For now just return no-op
+        val lastMove = state.custom["lastMoveTimestamp"]?.jsonPrimitive?.long ?: System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+        
+        if (now - lastMove > MOVE_TIMEOUT_MS && state.phase == GamePhase.IN_PROGRESS) {
+            val currentTurnPlayer = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
+            state.custom["forfeitedPlayerId"] = JsonPrimitive(currentTurnPlayer)
+            // No need to broadcast an event here as checkWinCondition will be called by the loop
+            // and it will trigger GAME_OVER.
+        }
+        
         return TickResult(state)
     }
 
@@ -140,6 +150,8 @@ class BingoEngine : GameEngine {
         )
         broadcastEvents.add(event)
 
+        state.custom["lastMoveTimestamp"] = JsonPrimitive(System.currentTimeMillis())
+
         val newState = state.copy(
             currentTurnIndex = nextTurnIndex,
             players = updatedPlayers,
@@ -153,7 +165,18 @@ class BingoEngine : GameEngine {
         val winners = mutableListOf<String>()
         val losers = mutableListOf<String>()
         
-        state.players.forEach { (pid, pState) ->
+        // Check for timeout/forfeit first
+        val forfeitId = state.custom["forfeitedPlayerId"]?.jsonPrimitive?.contentOrNull
+        if (forfeitId != null) {
+            val opponentId = state.players.keys.firstOrNull { it != forfeitId }
+            if (opponentId != null) {
+                winners.add(opponentId)
+                losers.add(forfeitId)
+            }
+        }
+
+        if (winners.isEmpty()) {
+            state.players.forEach { (pid, pState) ->
             val lineCount = pState.custom["lineCount"]?.jsonPrimitive?.int ?: 0
             if (lineCount >= 5) {
                 winners.add(pid)
