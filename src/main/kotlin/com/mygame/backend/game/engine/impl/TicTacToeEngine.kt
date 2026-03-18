@@ -11,6 +11,7 @@ class TicTacToeEngine : GameEngine {
 
     companion object {
         const val OP_MAKE_MOVE = 20
+        const val MOVE_TIMEOUT_MS = 30000L
 
         fun generateWinLines(boardSize: Int, winCondition: Int): List<List<Int>> {
             val lines = mutableListOf<List<Int>>()
@@ -107,12 +108,21 @@ class TicTacToeEngine : GameEngine {
                 "winCondition" to JsonPrimitive(winCondition),
                 "totalCells" to JsonPrimitive(totalCells),
                 "winLines" to Json.encodeToJsonElement(winLines),
-                "startedAt" to JsonPrimitive(System.currentTimeMillis())
+                "startedAt" to JsonPrimitive(System.currentTimeMillis()),
+                "lastMoveTimestamp" to JsonPrimitive(System.currentTimeMillis())
             )
         )
     }
 
     override fun onTick(state: GameState, deltaMs: Long): TickResult {
+        val lastMove = state.custom["lastMoveTimestamp"]?.jsonPrimitive?.longOrNull ?: System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+
+        if (now - lastMove > MOVE_TIMEOUT_MS && state.phase == GamePhase.IN_PROGRESS && state.custom["forfeitedPlayerId"] == null) {
+            val currentTurnPlayer = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
+            state.custom["forfeitedPlayerId"] = JsonPrimitive(currentTurnPlayer)
+        }
+
         return TickResult(state)
     }
 
@@ -148,6 +158,7 @@ class TicTacToeEngine : GameEngine {
         val moveCount = (state.custom["moveCount"]?.jsonPrimitive?.intOrNull ?: 0) + 1
         state.custom["board"] = Json.encodeToJsonElement(board)
         state.custom["moveCount"] = JsonPrimitive(moveCount)
+        state.custom["lastMoveTimestamp"] = JsonPrimitive(System.currentTimeMillis())
 
         val nextTurnIndex = state.currentTurnIndex + 1
         val nextTurnPlayerId = state.turnOrder[nextTurnIndex % state.turnOrder.size]
@@ -185,6 +196,25 @@ class TicTacToeEngine : GameEngine {
         val winLinesJson = state.custom["winLines"]?.jsonArray
             ?: return null
         val winLines = winLinesJson.map { line -> line.jsonArray.map { it.jsonPrimitive.int } }
+
+        // Check for timeout/forfeit first
+        val forfeitId = state.custom["forfeitedPlayerId"]?.jsonPrimitive?.content
+        if (forfeitId != null) {
+            val opponentId = state.players.keys.firstOrNull { it != forfeitId }
+            if (opponentId != null) {
+                return GameResult(
+                    winnerIds = listOf(opponentId),
+                    loserIds = listOf(forfeitId),
+                    rankings = listOf(
+                        RankedPlayer(opponentId, 1, 1),
+                        RankedPlayer(forfeitId, 2, 0)
+                    ),
+                    coinDeltas = mapOf(opponentId to 50L, forfeitId to -10L),
+                    xpDeltas = mapOf(opponentId to 30, forfeitId to 5),
+                    summary = mapOf("reason" to JsonPrimitive("TIMEOUT"))
+                )
+            }
+        }
 
         for ((playerId, markElement) in marks) {
             val mark = markElement.jsonPrimitive.content

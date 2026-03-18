@@ -16,6 +16,7 @@ class DotsAndBoxesEngine : GameEngine {
         const val V_LINES_COUNT = GRID_SIZE * (GRID_SIZE - 1)
         
         const val OP_DRAW_LINE = 30
+        const val MOVE_TIMEOUT_MS = 30000L
     }
 
     override fun initializeGame(players: List<Player>, config: Map<String, String>): GameState {
@@ -53,7 +54,8 @@ class DotsAndBoxesEngine : GameEngine {
                 "vLines" to Json.encodeToJsonElement(vLines),
                 "boxes" to Json.encodeToJsonElement(boxes),
                 "moveCount" to JsonPrimitive(0),
-                "startedAt" to JsonPrimitive(System.currentTimeMillis())
+                "startedAt" to JsonPrimitive(System.currentTimeMillis()),
+                "lastMoveTimestamp" to JsonPrimitive(System.currentTimeMillis())
             )
         )
     }
@@ -69,6 +71,14 @@ class DotsAndBoxesEngine : GameEngine {
     }
 
     override fun onTick(state: GameState, deltaMs: Long): TickResult {
+        val lastMove = state.custom["lastMoveTimestamp"]?.jsonPrimitive?.longOrNull ?: System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+
+        if (now - lastMove > MOVE_TIMEOUT_MS && state.phase == GamePhase.IN_PROGRESS && state.custom["forfeitedPlayerId"] == null) {
+            val currentTurnPlayer = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
+            state.custom["forfeitedPlayerId"] = JsonPrimitive(currentTurnPlayer)
+        }
+
         return TickResult(state)
     }
 
@@ -182,6 +192,7 @@ class DotsAndBoxesEngine : GameEngine {
         state.custom["vLines"] = Json.encodeToJsonElement(vLines)
         state.custom["boxes"] = Json.encodeToJsonElement(boxes)
         state.custom["moveCount"] = JsonPrimitive(moveCount)
+        state.custom["lastMoveTimestamp"] = JsonPrimitive(System.currentTimeMillis())
         
         // Update player score if boxes completed
         var updatedPlayers = state.players
@@ -242,6 +253,26 @@ class DotsAndBoxesEngine : GameEngine {
     override fun checkWinCondition(state: GameState): GameResult? {
         val boxes = state.custom["boxes"]?.jsonArray?.map { it.jsonPrimitive.content } ?: return null
         val moveCount = state.custom["moveCount"]?.jsonPrimitive?.intOrNull ?: 0
+
+        // Check for timeout/forfeit first
+        val forfeitId = state.custom["forfeitedPlayerId"]?.jsonPrimitive?.content
+        if (forfeitId != null) {
+            val opponentId = state.players.keys.firstOrNull { it != forfeitId }
+            if (opponentId != null) {
+                val playerScores = state.players.mapValues { if (it.key == opponentId) it.value.score + 1 else it.value.score }
+                return GameResult(
+                    winnerIds = listOf(opponentId),
+                    loserIds = listOf(forfeitId),
+                    rankings = listOf(
+                        RankedPlayer(opponentId, 1, playerScores[opponentId] ?: 1),
+                        RankedPlayer(forfeitId, 2, playerScores[forfeitId] ?: 0)
+                    ),
+                    coinDeltas = mapOf(opponentId to 50L, forfeitId to -10L),
+                    xpDeltas = mapOf(opponentId to 30, forfeitId to 5),
+                    summary = mapOf("reason" to JsonPrimitive("TIMEOUT"), "finalScores" to Json.encodeToJsonElement(playerScores))
+                )
+            }
+        }
 
         // Check if all boxes are claimed
         if (boxes.all { it.isNotEmpty() }) {
