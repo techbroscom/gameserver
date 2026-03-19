@@ -9,6 +9,13 @@ import kotlinx.serialization.json.*
 class NumberGuessEngine : GameEngine {
     override val gameType: String = "NUMBER_GUESS"
 
+    companion object {
+        const val OP_GUESS = 10
+        const val OP_SET_SECRET = 11
+        const val OP_TURN_SKIPPED = 12
+        const val TURN_TIMEOUT_MS = 30000L
+    }
+
     override fun initializeGame(players: List<Player>, config: Map<String, String>): GameState {
         val turnOrder = players.map { it.id }.shuffled()
         
@@ -31,13 +38,55 @@ class NumberGuessEngine : GameEngine {
             currentTurnIndex = 0,
             custom = mutableMapOf(
                 "totalAttempts" to JsonPrimitive(0),
-                "maxAttempts" to JsonPrimitive(20), // Increased max attempts as it's harder now? Or keep 10?
-                "winnerId" to JsonNull
+                "maxAttempts" to JsonPrimitive(20),
+                "winnerId" to JsonNull,
+                "lastMoveTimestamp" to JsonPrimitive(System.currentTimeMillis()),
+                "turnSkipInProgress" to JsonPrimitive(false)
             )
         )
     }
 
     override fun onTick(state: GameState, deltaMs: Long): TickResult {
+        // Only apply turn-skip timeout during the guessing phase
+        if (state.phase != GamePhase.IN_PROGRESS) return TickResult(state)
+
+        val lastMove = state.custom["lastMoveTimestamp"]?.jsonPrimitive?.longOrNull
+            ?: return TickResult(state)
+        val now = System.currentTimeMillis()
+
+        // Avoid double-triggering: guard with turnSkipInProgress flag
+        val skipInProgress = state.custom["turnSkipInProgress"]?.jsonPrimitive?.booleanOrNull ?: false
+        if (skipInProgress) return TickResult(state)
+
+        if (now - lastMove > TURN_TIMEOUT_MS) {
+            // Advance the turn to the opponent
+            val nextTurnIndex = state.currentTurnIndex + 1
+            val skippedPlayerId = state.turnOrder[state.currentTurnIndex % state.turnOrder.size]
+            val nextTurnPlayerId = state.turnOrder[nextTurnIndex % state.turnOrder.size]
+
+            // Reset timestamp and clear guard flag
+            state.custom["lastMoveTimestamp"] = JsonPrimitive(System.currentTimeMillis())
+            state.custom["turnSkipInProgress"] = JsonPrimitive(false)
+
+            val event = GameEvent(
+                senderId = "SERVER",
+                roomId = state.roomId,
+                opCode = OP_TURN_SKIPPED,
+                payload = mapOf(
+                    "skippedPlayerId" to JsonPrimitive(skippedPlayerId),
+                    "nextTurnPlayerId" to JsonPrimitive(nextTurnPlayerId)
+                ),
+                targetType = TargetType.BROADCAST
+            )
+
+            val newState = state.copy(
+                currentTurnIndex = nextTurnIndex,
+                custom = state.custom
+            )
+
+            return TickResult(updatedState = newState, broadcastEvents = listOf(event))
+        }
+
         return TickResult(state)
     }
 
@@ -109,6 +158,7 @@ class NumberGuessEngine : GameEngine {
             playerState.custom["attempts"] = JsonPrimitive(pAttempts)
             
             state.custom["totalAttempts"] = JsonPrimitive(totalAttempts)
+            state.custom["lastMoveTimestamp"] = JsonPrimitive(System.currentTimeMillis())
             
             val hint = when {
                 guess < secret -> "TOO_LOW"
