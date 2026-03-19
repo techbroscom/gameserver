@@ -135,6 +135,13 @@ class GameHandler(
                      roomManager.leaveRoom(playerId, room.id)
                  }
              }
+             is CloseRoomMessage -> {
+                 val room = roomManager.getPlayerRoom(playerId)
+                 if (room != null) {
+                     roomManager.leaveRoom(playerId, room.id)
+                 }
+             }
+
              is StartGameMessage -> {
                  val room = roomManager.getPlayerRoom(playerId)
                  if (room != null) {

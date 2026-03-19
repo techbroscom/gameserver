@@ -33,6 +33,10 @@ data class JoinRoomMessage(override val requestId: String, val roomId: String, v
 @Serializable @SerialName("LEAVE_ROOM")
 data class LeaveRoomMessage(override val requestId: String) : ClientMessage()
 
+@Serializable @SerialName("CLOSE_ROOM")
+data class CloseRoomMessage(override val requestId: String) : ClientMessage()
+
+
 @Serializable @SerialName("START_GAME")
 data class StartGameMessage(override val requestId: String) : ClientMessage()
 
