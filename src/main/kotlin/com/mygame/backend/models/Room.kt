@@ -22,6 +22,10 @@ data class Room(
     // Thread-safe set of player IDs in the room
     val players = ConcurrentHashMap.newKeySet<String>()
     
+    // Track retry votes: PlayerID -> Accepted?
+    val retryVotes = ConcurrentHashMap<String, Boolean>()
+    @Volatile var retryRequesterId: String? = null
+    
     fun toDto() = RoomDto(
         id = id,
         name = name,

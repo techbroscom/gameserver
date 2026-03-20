@@ -173,20 +173,32 @@ class GameHandler(
              is PingMessage -> session.send(ServerPongMessage(message.requestId))
              is PongMessage -> { /* Handle heartbeat stats */ }
              is EndGameMessage -> { /* handling end game manually */ }
-             is VoiceSignalMessage -> {
-                 val targetSession = sessionManager.getSession(message.targetId)
-                 if (targetSession != null) {
-                     targetSession.send(ServerVoiceSignalMessage(
-                         senderId = playerId,
-                         signal = message.signal
-                     ))
-                 } else {
-                     // Optionally send an error if target is offline, though for WebRTC 
-                     // usually we just let it fail silently or let the client handle timeout.
-                     logger.debug("VoiceSignal target ${message.targetId} not found for $playerId")
-                 }
-             }
-             else -> {}
+            is VoiceSignalMessage -> {
+                val targetSession = sessionManager.getSession(message.targetId)
+                if (targetSession != null) {
+                    targetSession.send(ServerVoiceSignalMessage(
+                        senderId = playerId,
+                        signal = message.signal
+                    ))
+                } else {
+                    // Optionally send an error if target is offline, though for WebRTC 
+                    // usually we just let it fail silently or let the client handle timeout.
+                    logger.debug("VoiceSignal target ${message.targetId} not found for $playerId")
+                }
+            }
+            is RetryRequestMessage -> {
+                val room = roomManager.getPlayerRoom(playerId)
+                if (room != null) {
+                    roomManager.handleRetryRequest(playerId, room.id)
+                }
+            }
+            is RetryResponseMessage -> {
+                val room = roomManager.getPlayerRoom(playerId)
+                if (room != null) {
+                    roomManager.handleRetryResponse(playerId, room.id, message.accept)
+                }
+            }
+            else -> {}
         }
     }
 }

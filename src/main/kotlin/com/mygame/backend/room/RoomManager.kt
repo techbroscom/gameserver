@@ -124,6 +124,10 @@ class RoomManager(
             val session = sessionManager.getSession(p.id)
             val myState = initialState.players[p.id]
 
+            // Reset retry state when starting a new game
+            room.retryVotes.clear()
+            room.retryRequesterId = null
+
             // Build a per-player JsonObject: only expose their own board + public turn info
             val perPlayerJson = JsonObject(mapOf(
                 "roomId" to JsonPrimitive(initialState.roomId),
@@ -202,6 +206,48 @@ class RoomManager(
         loop?.stop()
         rooms.remove(roomId)
         gameStateManager.removeState(roomId)
+    }
+
+    suspend fun handleRetryRequest(playerId: String, roomId: String) {
+        val room = rooms[roomId] ?: return
+        val player = playerRepository.findById(playerId) ?: return
+        
+        // Only allow retry after game has ended (or if it's the host and no game started yet?)
+        // For now, let's assume it's called from the result screen.
+        
+        room.retryRequesterId = playerId
+        room.retryVotes.clear()
+        room.retryVotes[playerId] = true // Requester automatically accepts
+        
+        // Notify other players
+        val message = RetryProposalMessage(playerId, player.username ?: "Player")
+        room.players.forEach { pid ->
+            if (pid != playerId) {
+                sessionManager.getSession(pid)?.send(message)
+            }
+        }
+    }
+
+    suspend fun handleRetryResponse(playerId: String, roomId: String, accept: Boolean) {
+        val room = rooms[roomId] ?: return
+        
+        if (accept) {
+            room.retryVotes[playerId] = true
+            
+            // If all players connected in the room have accepted, restart
+            val allAccepted = room.players.all { pid -> room.retryVotes[pid] == true }
+            if (allAccepted) {
+                startGame(room.hostPlayerId, roomId)
+            }
+        } else {
+            // One player declined, cancel retry
+            val requesterId = room.retryRequesterId
+            if (requesterId != null) {
+                sessionManager.getSession(requesterId)?.send(RetryRejectionMessage("The other player is not interested"))
+            }
+            room.retryVotes.clear()
+            room.retryRequesterId = null
+        }
     }
 
     private suspend fun broadcastToRoom(roomId: String, message: ServerMessage) {

@@ -63,6 +63,12 @@ data class VoiceSignalMessage(
     val signal: JsonElement
 ) : ClientMessage()
 
+@Serializable @SerialName("RETRY_REQUEST")
+data class RetryRequestMessage(override val requestId: String) : ClientMessage()
+
+@Serializable @SerialName("RETRY_RESPONSE")
+data class RetryResponseMessage(override val requestId: String, val accept: Boolean) : ClientMessage()
+
 // --------------------------------------------------------
 
 @Serializable
@@ -144,6 +150,19 @@ data class ServerPingMessage(override val timestamp: Long = System.currentTimeMi
 
 @Serializable @SerialName("PONG")
 data class ServerPongMessage(val requestId: String, override val timestamp: Long = System.currentTimeMillis()) : ServerMessage()
+
+@Serializable @SerialName("RETRY_PROPOSAL")
+data class RetryProposalMessage(
+    val requesterId: String,
+    val requesterName: String,
+    override val timestamp: Long = System.currentTimeMillis()
+) : ServerMessage()
+
+@Serializable @SerialName("RETRY_REJECTION")
+data class RetryRejectionMessage(
+    val reason: String,
+    override val timestamp: Long = System.currentTimeMillis()
+) : ServerMessage()
 
 @Serializable
 data class RoomDto(
