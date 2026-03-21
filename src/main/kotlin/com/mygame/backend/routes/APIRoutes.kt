@@ -37,6 +37,7 @@ fun Route.apiRoutes(
     roomManager: RoomManager, 
     matchmakingService: MatchmakingService,
     playerRepository: PlayerRepository,
+    friendRepository: FriendRepository,
     coinTransactionRepository: CoinTransactionRepository,
     economyService: EconomyService
 ) {
@@ -75,6 +76,17 @@ fun Route.apiRoutes(
                 val offset = call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L
                 val history = coinTransactionRepository.getHistory(id, limit, offset)
                 call.respond(history)
+            }
+
+            get("/{id}/friends") {
+                val id = call.parameters["id"] ?: return@get call.respondText("Missing ID", status = io.ktor.http.HttpStatusCode.BadRequest)
+                val friendIds = friendRepository.getFriendsForPlayer(id)
+                val friends = friendIds.mapNotNull { friendId ->
+                    playerRepository.findById(friendId)?.let {
+                        LeaderboardEntryDto(it.authId, it.username, it.elo, it.wins, it.avatarId)
+                    }
+                }
+                call.respond(friends)
             }
 
             post("/collect-free") {

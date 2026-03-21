@@ -27,6 +27,7 @@ val appModule = module {
     single { PlayerRepository() }
     single { CoinTransactionRepository() }
     single { GameResultRepository() }
+    single { FriendRepository() }
     
     // Services
     single { EconomyService(get(), get()) }
@@ -34,7 +35,7 @@ val appModule = module {
     single { MatchmakingService(get(), get()) }
     
     // Handlers
-    single { GameHandler(get(), get(), get()) }
+    single { GameHandler(get(), get(), get(), get(), get()) }
     
     // Game Registry Init (eager)
     single(createdAtStart = true) { 

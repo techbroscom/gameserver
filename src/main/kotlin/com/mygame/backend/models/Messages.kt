@@ -69,6 +69,12 @@ data class RetryRequestMessage(override val requestId: String) : ClientMessage()
 @Serializable @SerialName("RETRY_RESPONSE")
 data class RetryResponseMessage(override val requestId: String, val accept: Boolean) : ClientMessage()
 
+@Serializable @SerialName("ADD_AS_FRIEND")
+data class AddAsFriendMessage(override val requestId: String, val targetPlayerId: String) : ClientMessage()
+
+@Serializable @SerialName("FRIEND_RESPONSE")
+data class FriendResponseMessage(override val requestId: String, val senderId: String, val accept: Boolean) : ClientMessage()
+
 // --------------------------------------------------------
 
 @Serializable
@@ -161,6 +167,20 @@ data class RetryProposalMessage(
 @Serializable @SerialName("RETRY_REJECTION")
 data class RetryRejectionMessage(
     val reason: String,
+    override val timestamp: Long = System.currentTimeMillis()
+) : ServerMessage()
+
+@Serializable @SerialName("FRIEND_REQUEST")
+data class FriendRequestMessage(
+    val senderId: String,
+    val senderName: String,
+    override val timestamp: Long = System.currentTimeMillis()
+) : ServerMessage()
+
+@Serializable @SerialName("FRIEND_ADDED")
+data class FriendAddedMessage(
+    val friendId: String,
+    val friendName: String,
     override val timestamp: Long = System.currentTimeMillis()
 ) : ServerMessage()
 

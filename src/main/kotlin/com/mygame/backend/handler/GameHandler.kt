@@ -23,7 +23,9 @@ import kotlinx.coroutines.launch
 class GameHandler(
     private val sessionManager: SessionManager,
     private val roomManager: RoomManager,
-    private val matchmakingService: MatchmakingService
+    private val matchmakingService: MatchmakingService,
+    private val playerRepository: PlayerRepository,
+    private val friendRepository: FriendRepository
 ) {
     private val logger = LoggerFactory.getLogger(GameHandler::class.java)
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -196,6 +198,52 @@ class GameHandler(
                 val room = roomManager.getPlayerRoom(playerId)
                 if (room != null) {
                     roomManager.handleRetryResponse(playerId, room.id, message.accept)
+                }
+            }
+            is AddAsFriendMessage -> {
+                val targetId = message.targetPlayerId
+                if (targetId == playerId) {
+                    session.send(ErrorMessage(message.requestId, 4005, "You cannot add yourself as a friend"))
+                    return@is AddAsFriendMessage
+                }
+                val targetSession = sessionManager.getSession(targetId)
+                if (targetSession != null) {
+                    val sender = playerRepository.findById(playerId)
+                    if (sender != null) {
+                        targetSession.send(FriendRequestMessage(
+                            senderId = playerId,
+                            senderName = sender.username ?: sender.authId
+                        ))
+                    }
+                } else {
+                    session.send(ErrorMessage(message.requestId, 4004, "Target player is offline"))
+                }
+            }
+            is FriendResponseMessage -> {
+                if (message.accept) {
+                    val requesterId = message.senderId // This is the person who SENT the request
+                    val accepterId = playerId
+                    
+                    val requester = playerRepository.findById(requesterId)
+                    val accepter = playerRepository.findById(accepterId)
+                    
+                    if (requester != null && accepter != null) {
+                        friendRepository.addFriend(requesterId, accepterId)
+                        
+                        // Notify both
+                        sessionManager.getSession(requesterId)?.send(FriendAddedMessage(
+                            friendId = accepterId,
+                            friendName = accepter.username ?: accepter.authId
+                        ))
+                        session.send(FriendAddedMessage(
+                            friendId = requesterId,
+                            friendName = requester.username ?: requester.authId
+                        ))
+                    }
+                } else {
+                    // Optionally notify requester that they were declined? 
+                    // User didn't ask for it, so we can skip or send a subtle notification.
+                    logger.info("Friend request from ${message.senderId} declined by $playerId")
                 }
             }
             else -> {}
