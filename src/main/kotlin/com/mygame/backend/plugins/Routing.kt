@@ -2,6 +2,7 @@ package com.mygame.backend.plugins
 
 import com.mygame.backend.economy.EconomyService
 import com.mygame.backend.repository.CoinTransactionRepository
+import com.mygame.backend.repository.FriendRepository
 import com.mygame.backend.repository.PlayerRepository
 import com.mygame.backend.room.MatchmakingService
 import com.mygame.backend.room.RoomManager
@@ -19,7 +20,8 @@ fun Application.configureRouting() {
     val matchmakingService by inject<MatchmakingService>()
     val coinTransactionRepository by inject<CoinTransactionRepository>()
     val economyService by inject<EconomyService>()
-    
+    val friendRepository by inject<FriendRepository>()
+
     routing {
         get("/") {
             call.respondText("Game Server is Running!")
@@ -29,6 +31,6 @@ fun Application.configureRouting() {
         }
         
         authRoutes(playerRepository, environment.config)
-        apiRoutes(roomManager, matchmakingService, playerRepository, coinTransactionRepository, economyService)
+        apiRoutes(roomManager, matchmakingService, playerRepository, friendRepository, coinTransactionRepository, economyService)
     }
 }

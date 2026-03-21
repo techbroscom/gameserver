@@ -15,6 +15,8 @@ import kotlinx.serialization.json.encodeToJsonElement
 import org.slf4j.LoggerFactory
 import com.mygame.backend.models.GameEvent
 import com.mygame.backend.models.TargetType
+import com.mygame.backend.repository.FriendRepository
+import com.mygame.backend.repository.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -204,7 +206,7 @@ class GameHandler(
                 val targetId = message.targetPlayerId
                 if (targetId == playerId) {
                     session.send(ErrorMessage(message.requestId, 4005, "You cannot add yourself as a friend"))
-                    return@is AddAsFriendMessage
+                    return
                 }
                 val targetSession = sessionManager.getSession(targetId)
                 if (targetSession != null) {

@@ -24,7 +24,7 @@ class CoinTransactionRepository {
     suspend fun getHistory(playerId: String, limit: Int = 50, offset: Long = 0): List<CoinTransaction> = dbQuery {
         CoinTransactions.selectAll().where { CoinTransactions.playerId eq playerId }
             .orderBy(CoinTransactions.createdAt to SortOrder.DESC)
-            .limit(limit, offset)
+            .limit(limit).offset(offset)
             .map {
                 CoinTransaction(
                     id = it[CoinTransactions.id],

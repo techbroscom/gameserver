@@ -10,6 +10,7 @@ import com.mygame.backend.game.engine.impl.NumberGuessEngine
 import com.mygame.backend.game.engine.impl.TicTacToeEngine
 import com.mygame.backend.handler.GameHandler
 import com.mygame.backend.repository.CoinTransactionRepository
+import com.mygame.backend.repository.FriendRepository
 import com.mygame.backend.repository.GameResultRepository
 import com.mygame.backend.repository.PlayerRepository
 import com.mygame.backend.room.MatchmakingService

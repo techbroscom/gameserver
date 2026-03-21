@@ -4,6 +4,7 @@ import com.mygame.backend.economy.EconomyService
 import com.mygame.backend.game.engine.GameEngineRegistry
 import com.mygame.backend.models.LeaderboardEntryDto
 import com.mygame.backend.repository.CoinTransactionRepository
+import com.mygame.backend.repository.FriendRepository
 import com.mygame.backend.repository.PlayerRepository
 import com.mygame.backend.room.MatchmakingService
 import com.mygame.backend.room.RoomManager
@@ -34,7 +35,7 @@ data class UpdateAvatarRequest(
 )
 
 fun Route.apiRoutes(
-    roomManager: RoomManager, 
+    roomManager: RoomManager,
     matchmakingService: MatchmakingService,
     playerRepository: PlayerRepository,
     friendRepository: FriendRepository,
