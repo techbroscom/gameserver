@@ -94,15 +94,19 @@ fun Route.apiRoutes(
                 val principal = call.principal<JWTPrincipal>()
                 val playerId = principal?.payload?.getClaim("id")?.asString() ?: return@post
                 
-                val result = economyService.claimDailyReward(playerId)
-                if (result.success) {
-                    call.respond(mapOf(
-                        "amount" to result.amount,
-                        "newBalance" to result.newBalance,
-                        "streak" to result.streak
-                    ))
-                } else {
-                    call.respondText("Daily reward already claimed or player not found", status = io.ktor.http.HttpStatusCode.BadRequest)
+                try {
+                    val result = economyService.claimDailyReward(playerId)
+                    if (result.success) {
+                        call.respond(mapOf(
+                            "amount" to result.amount,
+                            "newBalance" to result.newBalance,
+                            "streak" to result.streak.toLong()
+                        ))
+                    } else {
+                        call.respondText("Daily reward already claimed or player not found", status = io.ktor.http.HttpStatusCode.BadRequest)
+                    }
+                } catch (e: Exception) {
+                    call.respondText("Server Error: ${e.message}\n${e.stackTraceToString()}", status = io.ktor.http.HttpStatusCode.InternalServerError)
                 }
             }
 
@@ -186,7 +190,13 @@ fun Route.apiRoutes(
         
         get("/leaderboard") {
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
-            val leaders = playerRepository.getLeaderboard(limit).map { 
+            val gameType = call.request.queryParameters["gameType"]
+            val players = if (!gameType.isNullOrBlank()) {
+                playerRepository.getGameLeaderboard(gameType, limit)
+            } else {
+                playerRepository.getLeaderboard(limit)
+            }
+            val leaders = players.map { 
                 LeaderboardEntryDto(it.authId, it.username, it.elo, it.wins, it.avatarId)
             }
             call.respond(leaders)

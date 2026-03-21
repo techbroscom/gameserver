@@ -50,7 +50,7 @@ class EconomyService(
         }
     }
 
-    suspend fun applyGameResult(roomId: String, result: GameResult) {
+    suspend fun applyGameResult(roomId: String, gameType: String, result: GameResult) {
         // Apply Coins and XP
         result.coinDeltas.forEach { (playerId, delta) ->
             val newCoins = playerRepository.updateCoins(playerId, delta)
@@ -65,7 +65,7 @@ class EconomyService(
             val isWin = result.winnerIds.contains(playerId)
             val eloDelta = if (isWin) 25 else -15 
             
-            playerRepository.updateStats(playerId, xpDelta, eloDelta, isWin)
+            playerRepository.updateStats(playerId, gameType, xpDelta, eloDelta, isWin)
             
             checkLevelUp(playerId)
         }
@@ -91,7 +91,7 @@ class EconomyService(
             }
             
             // Stats update for ELO on level up
-            playerRepository.updateStats(playerId, 0, eloReward, false) // false is win but we don't increment win count here
+            playerRepository.updateStats(playerId, null, 0, eloReward, false) // false is win but we don't increment win count here
         }
     }
 

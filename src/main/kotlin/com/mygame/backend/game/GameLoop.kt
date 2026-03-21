@@ -132,7 +132,7 @@ class GameLoop(
             gameStateManager.setState(roomId, finalState)
         }
 
-        economyService.applyGameResult(roomId, result)
+        economyService.applyGameResult(roomId, gameType, result)
         gameResultRepository.save(
             roomId = roomId, 
             gameType = gameType, 

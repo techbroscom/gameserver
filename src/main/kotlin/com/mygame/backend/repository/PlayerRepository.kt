@@ -1,6 +1,7 @@
 package com.mygame.backend.repository
 
 import com.mygame.backend.db.DatabaseFactory.dbQuery
+import com.mygame.backend.db.tables.PlayerGameStats
 import com.mygame.backend.db.tables.Players
 import com.mygame.backend.models.Player
 import org.jetbrains.exposed.sql.*
@@ -128,7 +129,7 @@ class PlayerRepository {
 
     suspend fun purchaseCoins(id: String, amount: Long): Long? = updateCoins(id, amount)
 
-    suspend fun updateStats(id: String, xpDelta: Int, eloDelta: Int, isWin: Boolean) = dbQuery {
+    suspend fun updateStats(id: String, gameType: String?, xpDelta: Int, eloDelta: Int, isWin: Boolean) = dbQuery {
         val current = Players.selectAll().where { Players.id eq id }.singleOrNull() ?: return@dbQuery
         
         val newXp = current[Players.xp] + xpDelta
@@ -142,8 +143,45 @@ class PlayerRepository {
             it[gamesPlayed] = newGames
             it[wins] = newWins
         }
+
+        if (gameType != null) {
+            val currentStats = PlayerGameStats.selectAll()
+                .where { (PlayerGameStats.playerId eq id) and (PlayerGameStats.gameType eq gameType) }
+                .singleOrNull()
+                
+            if (currentStats != null) {
+                PlayerGameStats.update({ (PlayerGameStats.playerId eq id) and (PlayerGameStats.gameType eq gameType) }) {
+                    it[elo] = currentStats[PlayerGameStats.elo] + eloDelta
+                    it[gamesPlayed] = currentStats[PlayerGameStats.gamesPlayed] + 1
+                    it[wins] = currentStats[PlayerGameStats.wins] + (if (isWin) 1 else 0)
+                }
+            } else {
+                PlayerGameStats.insert {
+                    it[playerId] = id
+                    it[PlayerGameStats.gameType] = gameType
+                    it[elo] = 1000 + eloDelta
+                    it[gamesPlayed] = 1
+                    it[wins] = if (isWin) 1 else 0
+                }
+            }
+        }
     }
     
+    suspend fun getGameLeaderboard(gameType: String, limit: Int = 10): List<Player> = dbQuery {
+        (Players innerJoin PlayerGameStats)
+            .selectAll()
+            .where { PlayerGameStats.gameType eq gameType }
+            .orderBy(PlayerGameStats.elo to SortOrder.DESC)
+            .limit(limit)
+            .map { row ->
+                toPlayer(row).copy(
+                    elo = row[PlayerGameStats.elo],
+                    wins = row[PlayerGameStats.wins],
+                    gamesPlayed = row[PlayerGameStats.gamesPlayed]
+                )
+            }
+    }
+
     suspend fun getLeaderboard(limit: Int = 10): List<Player> = dbQuery {
         Players.selectAll()
             .orderBy(Players.elo to SortOrder.DESC)

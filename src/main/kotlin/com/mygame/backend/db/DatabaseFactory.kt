@@ -41,7 +41,7 @@ object DatabaseFactory {
                 ${'$'}${'$'};
             """)
 
-            SchemaUtils.createMissingTablesAndColumns(Players, CoinTransactions, GameResults)
+            SchemaUtils.createMissingTablesAndColumns(Players, CoinTransactions, GameResults, PlayerGameStats)
         }
     }
 
