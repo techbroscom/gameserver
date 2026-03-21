@@ -18,7 +18,8 @@ class GameLoop(
     private val gameStateManager: GameStateManager,
     private val economyService: EconomyService,
     private val gameResultRepository: GameResultRepository,
-    private val broadcastEvent: suspend (String, GameEvent) -> Unit
+    private val broadcastEvent: suspend (String, GameEvent) -> Unit,
+    private val onGameOver: suspend (String) -> Unit
 ) {
     private val logger = LoggerFactory.getLogger(GameLoop::class.java)
     private var job: Job? = null
@@ -154,6 +155,7 @@ class GameLoop(
         // We'll assume broadcastEvent does the right thing.
         broadcastEvent(roomId, gameOverEvent)
         
+        onGameOver(roomId)
         stop()
     }
 }

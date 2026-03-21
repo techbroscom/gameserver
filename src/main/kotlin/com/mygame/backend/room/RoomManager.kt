@@ -105,7 +105,7 @@ class RoomManager(
     suspend fun startGame(hostId: String, roomId: String) {
         val room = rooms[roomId] ?: return
         if (room.hostPlayerId != hostId) return
-        if (room.state != RoomState.WAITING) return
+        if (room.state != RoomState.WAITING && room.state != RoomState.FINISHED) return
         
         val engine = try {
              GameEngineRegistry.get(room.gameType)
@@ -155,17 +155,24 @@ class RoomManager(
             room.gameType, 
             gameStateManager, 
             economyService, 
-            gameResultRepository
-        ) { rid, event ->
-            // Broadcast strategy
-            if (event.targetType == TargetType.BROADCAST) {
-                 broadcastToRoom(rid, EventMessage(event.senderId, room.gameType, event.opCode, event.payload))
-            } else if (event.targetType == TargetType.SPECIFIC_PLAYERS) {
-                 event.targetIds.forEach { pid ->
-                     sessionManager.getSession(pid)?.send(EventMessage(event.senderId, room.gameType, event.opCode, event.payload))
-                 }
+            gameResultRepository,
+            { rid, event ->
+                // Broadcast strategy
+                if (event.targetType == TargetType.BROADCAST) {
+                     broadcastToRoom(rid, EventMessage(event.senderId, room.gameType, event.opCode, event.payload))
+                } else if (event.targetType == TargetType.SPECIFIC_PLAYERS) {
+                     event.targetIds.forEach { pid ->
+                         sessionManager.getSession(pid)?.send(EventMessage(event.senderId, room.gameType, event.opCode, event.payload))
+                     }
+                }
+            },
+            { id -> 
+                rooms[id]?.let { r ->
+                    r.state = RoomState.FINISHED
+                    logger.info("Room $id state changed to FINISHED")
+                }
             }
-        }
+        )
         
         gameLoops[roomId] = loop
         loop.start()
